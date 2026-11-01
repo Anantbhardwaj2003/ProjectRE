@@ -1,3 +1,5 @@
+
+<img width="1405" height="863" alt="Screenshot 2026-11-01 163621" src="https://github.com/user-attachments/assets/f28c00dc-4bee-4c74-981c-306343825b97" />
 # EstateSync — Real Estate & Listing Auditor Platform
 
 EstateSync is a modern, full-stack real estate marketplace and listing verification management system. It bridges property seekers, owners, and administrative listing auditors with real-time property submissions, geolocation-based search, multi-role authentication, and an executive listing audit workflow.
@@ -7,6 +9,7 @@ EstateSync is a modern, full-stack real estate marketplace and listing verificat
 ## 📑 Table of Contents
 
 - [Key Features](#-key-features)
+- [Screenshots](#-screenshots)
 - [Architecture & Tech Stack](#-architecture--tech-stack)
 - [Project Directory Structure](#-project-directory-structure)
 - [Database Schema](#-database-schema)

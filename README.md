@@ -205,6 +205,7 @@ stateDiagram-v2
     state "Live on Public Portal<br>100% Verified<br>Appears in 'Accepted Listings'" as Accepted_By_ListingAuditor
 
     state "Archived / Rejected Queue<br>Audit Declined<br>Appears in 'Rejected Listings'" as Rejected_By_ListingAuditor
+```
 ---
 
 ## 🚀 Getting Started

@@ -197,15 +197,14 @@ erDiagram
 stateDiagram-v2
     [*] --> Submitted: Owner submits via Post Property Modal
     
-    state "Pending Application Queue\nStatus = 'Submitted'\nAwaiting Auditor Review" as Submitted
+    state "Pending Application Queue<br>Status = 'Submitted'<br>Awaiting Auditor Review" as Submitted
 
     Submitted --> Accepted_By_ListingAuditor: Auditor selects 'Completed'
     Submitted --> Rejected_By_ListingAuditor: Auditor selects 'Rejected'
 
-    state "Live on Public Portal\n100% Verified\nAppears in 'Accepted Listings'" as Accepted_By_ListingAuditor
+    state "Live on Public Portal<br>100% Verified<br>Appears in 'Accepted Listings'" as Accepted_By_ListingAuditor
 
-    state "Archived / Rejected Queue\nAudit Declined\nAppears in 'Rejected Listings'" as Rejected_By_ListingAuditor
-```
+    state "Archived / Rejected Queue<br>Audit Declined<br>Appears in 'Rejected Listings'" as Rejected_By_ListingAuditor
 ---
 
 ## 🚀 Getting Started

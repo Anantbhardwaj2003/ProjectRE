@@ -198,21 +198,21 @@ stateDiagram-v2
     [*] --> Submitted: Owner submits via Post Property Modal
     
     state "Pending Application Queue" as Submitted {
-        Submitted: Status = 'Submitted'
-        Submitted: Awaiting Auditor Review
+        S1: Status = 'Submitted'
+        S2: Awaiting Auditor Review
     }
 
     Submitted --> Accepted_By_ListingAuditor: Auditor selects 'Completed'
     Submitted --> Rejected_By_ListingAuditor: Auditor selects 'Rejected'
 
     state "Live on Public Portal" as Accepted_By_ListingAuditor {
-        Accepted_By_ListingAuditor: 100% Verified
-        Accepted_By_ListingAuditor: Appears in 'Accepted Listings'
+        A1: 100% Verified
+        A2: Appears in 'Accepted Listings'
     }
 
     state "Archived / Rejected Queue" as Rejected_By_ListingAuditor {
-        Rejected_By_ListingAuditor: Audit Declined
-        Rejected_By_ListingAuditor: Appears in 'Rejected Listings'
+        R1: Audit Declined
+        R2: Appears in 'Rejected Listings'
     }
 ```
 

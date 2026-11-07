@@ -171,13 +171,19 @@ export default function Admin() {
           }
 
           const adminName = adminInfo?.username || username.trim();
-          setSuccessMsg(`Authentication successful! Welcome, ${adminName} (${adminInfo?.role_type || roleLabel}).`);
+          const roleTypeName = String(adminInfo?.role_type || roleLabel || '').trim();
+          setSuccessMsg(`Authentication successful! Welcome, ${adminName} (${roleTypeName}).`);
 
           // Update authentication context
           login(adminName, adminInfo?.admin_id || null, null, 'user');
 
+          // Role-based routing: Property Manager -> /propertymanager, Listing Auditor -> /listingdashboard
+          const normalizedRole = roleTypeName.toLowerCase().replace(/[\s_-]+/g, '');
+          const isPropertyManager = normalizedRole.includes('propertymanager') || (normalizedRole.includes('property') && normalizedRole.includes('manager'));
+          const destination = isPropertyManager ? '/propertymanager' : '/listingdashboard';
+
           setTimeout(() => {
-            navigate('/listingdashboard');
+            navigate(destination);
           }, 800);
         } else {
           setError(data.error || 'Invalid username or password.');

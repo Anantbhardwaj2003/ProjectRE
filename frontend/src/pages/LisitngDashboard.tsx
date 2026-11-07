@@ -82,7 +82,7 @@ export default function ListingDashboard() {
   // Status helper checks
   const isAccepted = (statusStr?: string) => {
     const s = (statusStr || '').trim().toLowerCase();
-    return s === 'accepted_by_listingauditor' || s === 'accepted' || s === 'completed';
+    return s === 'accepted_by_listingauditor' || s === 'accepted' || s === 'completed' || s === 'uploadimagesbyuser';
   };
 
   const isRejected = (statusStr?: string) => {
@@ -359,29 +359,11 @@ export default function ListingDashboard() {
                 <span>Admin Console &bull; EstateSync</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                Admin Dashboard
+                Listing Auditor Dashboard
               </h1>
               <p className="mt-1 text-xs sm:text-sm text-gray-300">
                 Welcome back, <span className="font-semibold text-white">{user}</span>. Overview of real estate listing verification pipelines.
               </p>
-            </div>
-
-            {/* Quick Status Badge & Refresh Button */}
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md text-xs text-gray-300">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Real-Time Database Sync: Active</span>
-              </div>
-              <button
-                type="button"
-                onClick={fetchDashboardData}
-                disabled={isLoading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-400/30 text-xs font-medium text-blue-300 transition-all cursor-pointer disabled:opacity-50"
-                title="Refresh dashboard data"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                <span>Refresh</span>
-              </button>
             </div>
           </div>
         </div>
@@ -802,7 +784,12 @@ export default function ListingDashboard() {
 
                         {/* Status Column */}
                         <td className="px-4 py-3 text-center whitespace-nowrap">
-                          {isRowAccepted ? (
+                          {rawStatus?.toLowerCase() === 'uploadimagesbyuser' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-200">
+                              <CheckCircle2 className="h-2.5 w-2.5 text-blue-600" />
+                              <span>UploadImagesByUser</span>
+                            </span>
+                          ) : isRowAccepted ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
                               <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
                               <span>Accepted_By_ListingAuditor</span>

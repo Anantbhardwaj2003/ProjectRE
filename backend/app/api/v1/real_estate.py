@@ -351,7 +351,7 @@ class PendingApplicationListingAuditor(Resource):
                 SELECT 
                     COUNT(*) as total_count,
                     COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) IN ('submitted', 'pending', '') OR Status IS NULL THEN 1 END) as pending_count,
-                    COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) = 'accepted_by_listingauditor' THEN 1 END) as accepted_count,
+                    COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) IN ('accepted_by_listingauditor', 'uploadimagesbyuser') THEN 1 END) as accepted_count,
                     COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) = 'rejected_by_listingauditor' THEN 1 END) as rejected_count
                 FROM public.IndividualPropertyDetails
             """)
@@ -382,8 +382,8 @@ class PendingApplicationListingAuditor(Resource):
 
             if status_filter.lower() == 'all':
                 pass  # Fetch all records
-            elif status_filter.lower() in ['accepted', 'accepted_by_listingauditor', 'completed']:
-                conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) = LOWER('Accepted_By_ListingAuditor')")
+            elif status_filter.lower() in ['accepted', 'accepted_by_listingauditor', 'completed', 'uploadimagesbyuser']:
+                conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) IN (LOWER('Accepted_By_ListingAuditor'), LOWER('UploadImagesByUser'))")
             elif status_filter.lower() in ['rejected', 'rejected_by_listingauditor']:
                 conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) = LOWER('Rejected_By_ListingAuditor')")
             elif status_filter.lower() in ['submitted', 'pending']:
@@ -438,8 +438,8 @@ class PendingApplicationListingAuditor(Resource):
 
                 if status_filter.lower() == 'all':
                     pass
-                elif status_filter.lower() in ['accepted', 'accepted_by_listingauditor', 'completed']:
-                    conditions.append("LOWER(TRIM(COALESCE(Status, ''))) = LOWER('Accepted_By_ListingAuditor')")
+                elif status_filter.lower() in ['accepted', 'accepted_by_listingauditor', 'completed', 'uploadimagesbyuser']:
+                    conditions.append("LOWER(TRIM(COALESCE(Status, ''))) IN (LOWER('Accepted_By_ListingAuditor'), LOWER('UploadImagesByUser'))")
                 elif status_filter.lower() in ['rejected', 'rejected_by_listingauditor']:
                     conditions.append("LOWER(TRIM(COALESCE(Status, ''))) = LOWER('Rejected_By_ListingAuditor')")
                 elif status_filter.lower() in ['submitted', 'pending']:
@@ -506,7 +506,7 @@ class CompletedApplicationListingAuditor(Resource):
                 SELECT 
                     COUNT(*) as total_count,
                     COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) IN ('submitted', 'pending', '') OR Status IS NULL THEN 1 END) as pending_count,
-                    COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed') THEN 1 END) as accepted_count,
+                    COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed', 'uploadimagesbyuser') THEN 1 END) as accepted_count,
                     COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) = 'rejected_by_listingauditor' THEN 1 END) as rejected_count
                 FROM public.IndividualPropertyDetails
             """
@@ -550,12 +550,12 @@ class CompletedApplicationListingAuditor(Resource):
             conditions = []
             params = {}
 
-            if status_filter.lower() in ['accepted', 'accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed']:
-                conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed')")
+            if status_filter.lower() in ['accepted', 'accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed', 'uploadimagesbyuser']:
+                conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed', 'uploadimagesbyuser')")
             elif status_filter.lower() in ['rejected', 'rejected_by_listingauditor']:
                 conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) = 'rejected_by_listingauditor'")
             else:
-                conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed', 'rejected_by_listingauditor')")
+                conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed', 'rejected_by_listingauditor', 'uploadimagesbyuser')")
 
             owner_conditions = []
             if digits:
@@ -667,7 +667,7 @@ class CompletedApplicationListingAuditor(Resource):
 
                 accepted_listings = [
                     l for l in listings 
-                    if str(l.get('Status') or l.get('status') or '').strip().lower() in ['accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'accepted']
+                    if str(l.get('Status') or l.get('status') or '').strip().lower() in ['accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'accepted', 'completed', 'uploadimagesbyuser']
                 ]
                 rejected_listings = [
                     l for l in listings 

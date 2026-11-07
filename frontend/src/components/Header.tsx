@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Building2, Bell, User, LogOut, CheckCircle2, 
-  MapPin, RefreshCw, X, ShieldCheck, Home as HomeIcon 
+  MapPin, RefreshCw, X, ShieldCheck, Home as HomeIcon,
+  Camera
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import PostPropertyModal from './PostPropertyModal';
+import UploadPropertyImagesModal from './UploadPropertyImagesModal';
 
 interface HeaderProps {
   onPostPropertyClick?: () => void;
@@ -14,6 +16,7 @@ interface HeaderProps {
 interface AcceptedProperty {
   id?: number;
   IndividualPropertyId?: number;
+  indprop_id?: number;
   property_id?: number;
   PropertyId?: number;
   contact_id?: number;
@@ -42,6 +45,10 @@ export default function Header({ onPostPropertyClick }: HeaderProps = {}) {
   const [acceptedListings, setAcceptedListings] = useState<AcceptedProperty[]>([]);
   const [isLoadingListings, setIsLoadingListings] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
+
+  // Upload Images Modal State
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [selectedPropertyForUpload, setSelectedPropertyForUpload] = useState<AcceptedProperty | null>(null);
 
   const handleLogout = () => {
     logout();
@@ -94,19 +101,39 @@ export default function Header({ onPostPropertyClick }: HeaderProps = {}) {
         const onlyAccepted: AcceptedProperty[] = rawItems
           .filter((item: any) => {
             const s = (item.Status || item.status || '').toString().toLowerCase().trim();
-            return s === 'accepted_by_listingauditor' || s === 'accepted_by_listingaudiotr' || s === 'accepted' || s === 'completed';
+            return (
+              s === 'accepted_by_propertymanager' ||
+              s === 'accepted_by_listingauditor' ||
+              s === 'accepted_by_listingaudiotr' ||
+              s === 'accepted' ||
+              s === 'completed' ||
+              s === 'uploadimagesbyuser'
+            );
           })
-          .map((item: any) => ({
-            id: item.id || item.IndividualPropertyId || item.individualpropertyid || item.PropertyId,
-            contact_id: item.contact_id,
-            Propertyname: item.Propertyname || item.propertyname || item.property_name || 'Property Listing',
-            property_type_name: item.property_type_name || item.PropertyType || item.property_type || 'Residential',
-            ownership_type_name: item.ownership_type_name || item.OwnerTypeName || item.ownershiptype || '',
-            Propertyaddress: item.Propertyaddress || item.propertyaddress || '',
-            Status: item.Status || item.status || 'Accepted_By_ListingAuditor',
-            contact_name: item.contact_name || item.name || '',
-            contact_mobile: item.contact_mobile || item.mobile_number || '',
-          }));
+          .map((item: any) => {
+            const indpropId = 
+              item.indprop_id ??
+              item.indpropId ??
+              item.ind_prop_id ??
+              item.IndividualPropertyId ?? 
+              item.individualpropertyid ?? 
+              item.id ?? 
+              item.property_id ??
+              item.PropertyId;
+            return {
+              id: item.id || indpropId,
+              IndividualPropertyId: indpropId,
+              indprop_id: indpropId,
+              contact_id: item.contact_id,
+              Propertyname: item.Propertyname || item.propertyname || item.property_name || 'Property Listing',
+              property_type_name: item.property_type_name || item.PropertyType || item.property_type || 'Residential',
+              ownership_type_name: item.ownership_type_name || item.OwnerTypeName || item.ownershiptype || '',
+              Propertyaddress: item.Propertyaddress || item.propertyaddress || '',
+              Status: item.Status || item.status || 'Accepted_By_ListingAuditor',
+              contact_name: item.contact_name || item.name || '',
+              contact_mobile: item.contact_mobile || item.mobile_number || '',
+            };
+          });
 
         setAcceptedListings(onlyAccepted);
       }
@@ -291,10 +318,22 @@ export default function Header({ onPostPropertyClick }: HeaderProps = {}) {
                               </div>
                             </div>
 
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                              ACCEPTED
-                            </span>
+                            {item.Status?.toLowerCase() === 'accepted_by_propertymanager' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                LIVE ON PORTAL
+                              </span>
+                            ) : item.Status?.toLowerCase() === 'uploadimagesbyuser' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/30 shrink-0">
+                                <CheckCircle2 className="h-3 w-3 text-blue-400" />
+                                IMAGES UPLOADED
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                ACCEPTED
+                              </span>
+                            )}
                           </div>
 
                           {item.Propertyaddress && (
@@ -309,7 +348,7 @@ export default function Header({ onPostPropertyClick }: HeaderProps = {}) {
                           <div className="flex items-center justify-between pt-1.5 border-t border-gray-700/40 text-[11px]">
                             <span className="text-emerald-400 font-medium flex items-center gap-1 text-[10px]">
                               <ShieldCheck className="h-3 w-3" />
-                              ACCEPTED_BY_LISTINGAUDITOR
+                              {item.Status || 'ACCEPTED_BY_LISTINGAUDITOR'}
                             </span>
                             {item.contact_mobile && (
                               <span className="text-gray-400 text-[10px] font-mono">
@@ -317,6 +356,24 @@ export default function Header({ onPostPropertyClick }: HeaderProps = {}) {
                               </span>
                             )}
                           </div>
+
+                          {/* Upload Images Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPropertyForUpload(item);
+                              setIsUploadModalOpen(true);
+                              setIsBellOpen(false);
+                            }}
+                            className={`w-full mt-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl active:scale-[0.98] text-white text-xs font-semibold shadow-md transition-all cursor-pointer ${
+                              item.Status?.toLowerCase() === 'uploadimagesbyuser'
+                                ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-950/30'
+                                : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950/30'
+                            }`}
+                          >
+                            <Camera className="h-3.5 w-3.5" />
+                            <span>{item.Status?.toLowerCase() === 'uploadimagesbyuser' ? 'Re-upload / Update Media' : 'Upload Images'}</span>
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -374,6 +431,16 @@ export default function Header({ onPostPropertyClick }: HeaderProps = {}) {
           onClose={() => setInternalModalOpen(false)} 
         />
       )}
+
+      {/* Upload Property Images & Landmarks Modal */}
+      <UploadPropertyImagesModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        property={selectedPropertyForUpload}
+        onSuccess={() => {
+          fetchAcceptedListings();
+        }}
+      />
     </header>
   );
 }

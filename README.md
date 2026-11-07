@@ -46,6 +46,13 @@ EstateSync is a modern, full-stack real estate marketplace and listing verificat
 
 ---
 
+## Screenshots
+<img width="1918" height="912" alt="Screenshot 2026-11-07 123345" src="https://github.com/user-attachments/assets/51a72558-143f-4923-8038-1ba870e5b1f1" />
+<img width="1918" height="913" alt="Screenshot 2026-11-07 123650" src="https://github.com/user-attachments/assets/36c902b8-a7ff-4fb2-a849-bea08b7b4394" />
+<img width="1917" height="911" alt="Screenshot 2026-11-07 154257" src="https://github.com/user-attachments/assets/d624ef47-1f5a-4ed2-b902-71182442ca00" />
+
+---
+
 ## 🛠️ Architecture & Tech Stack
 
 ```mermaid

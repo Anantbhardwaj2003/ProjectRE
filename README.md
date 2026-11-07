@@ -1,17 +1,21 @@
 # EstateSync — Real Estate & Listing Auditor Platform
 
-EstateSync is a modern, full-stack real estate marketplace and listing verification management system. It bridges property seekers, owners, and administrative listing auditors with real-time property submissions, geolocation-based search, multi-role authentication, and an executive listing audit workflow.
+EstateSync is an enterprise-grade, full-stack real estate marketplace, listing audit, and property management platform. It bridges property seekers, owners, listing auditors, and property managers through end-to-end listing lifecycles: public property discovery, geolocation-based search, multi-step property submissions, 2-tier verification pipelines (Listing Auditor deed review + Property Manager 5-angle media inspection), and automated workflow transitions.
 
 ---
 
 ## 📑 Table of Contents
 
 - [Key Features](#-key-features)
+  - [Public & Owner Portal](#-public--owner-portal)
+  - [Listing Auditor Console](#-listing-auditor-console)
+  - [Property Manager Dashboard](#-property-manager-dashboard)
+- [Multi-Tier Verification & Status Lifecycle](#-multi-tier-verification--status-lifecycle)
 - [Architecture & Tech Stack](#-architecture--tech-stack)
 - [Project Directory Structure](#-project-directory-structure)
 - [Database Schema](#-database-schema)
 - [API Reference (`/api/v1`)](#-api-reference-apiv1)
-- [Audit & Status Lifecycle](#-audit--status-lifecycle)
+- [Static Asset Serving (`/static/uploads`)](#-static-asset-serving-staticuploads)
 - [Getting Started](#-getting-started)
   - [Prerequisites](#prerequisites)
   - [Backend Setup (Flask)](#backend-setup-flask)
@@ -23,26 +27,58 @@ EstateSync is a modern, full-stack real estate marketplace and listing verificat
 
 ## 🌟 Key Features
 
-### 🏡 Public & User Portal
-- **Property Discovery**: Smart search with dynamic suggestions and category filtering (Rent, Buy, Commercial, Plots, Luxury Villas).
+### 🏡 Public & Owner Portal
+- **Property Discovery**: Smart search with dynamic query suggestions and category filtering (Rent, Buy, Commercial, Plots, Luxury Villas).
 - **Geolocation "Search Near Me"**: Calculates geographical distances using the Haversine formula and pinpoints nearby properties on interactive maps (Leaflet / React-Leaflet).
-- **Multi-Step Property Submission**: Intuitive modal form for owners/agents to publish properties:
-  - **Step 1**: Contact validation (Name, Mobile).
-  - **Step 2**: Property details (Property Type, Ownership Type, Address, Proof Documents).
-  - **Step 3**: Instant submission into the administrative review queue.
+- **Multi-Step Property Submission**:
+  - **Step 1**: Owner contact validation (`name`, `mobile_number`).
+  - **Step 2**: Property specifications (Property Type, Ownership Type, Address, Ownership Deed Proof Reference/Attachment).
+  - **Step 3**: Instant submission into the administrative review queue with initial status `Submitted`.
+- **Accepted Listings Bell Notification**:
+  - Real-time popover in the top navigation bar fetching approved applications via `/api/v1/completedapplicationlistingauditor`.
+  - Prompts owners when their property is verified by the Listing Auditor.
+- **5-Angle Media & Landmark Uploader Modal** (`UploadPropertyImagesModal`):
+  - Once approved by the auditor, owners can upload 5 mandatory angle photos:
+    1. *Front / Exterior Angle*
+    2. *Living Room / Main Hall*
+    3. *Master Bedroom Angle*
+    4. *Kitchen / Dining Space*
+    5. *Balcony / Washroom Angle*
+  - **File Validation**: Strict client- and server-side validation enforcing a **500 KB limit** per image and verified formats (`.png`, `.jpg`, `.jpeg`, `.webp`).
+  - **Surrounding Infrastructure & Landmarks**: Optional fields (Metro Station, Police Station, Hospital, Shopping Market) with automated sanitation (special character stripping, 100 character maximum).
+  - Automatically transitions property status to **`UploadImagesByUser`**.
 
-### 🛡️ Administrative Console & Listing Auditor Dashboard
-- **Role-Based Access**: Role-based authentication (`Listing Auditor`, `Super Admin`, etc.) powered by database-driven role masters.
+---
+
+### 🛡️ Listing Auditor Console (`/listingdashboard`)
+- **Role-Based Authentication**: Secure login for Listing Auditors via `/admin` credentials.
 - **KPI Metrics**:
-  - **Number of Pending Lists**: Live count of submitted listings requiring administrative review.
-  - **Number of Completed Lists**: Verified and approved listings published on the platform.
+  - **Pending Applications**: Properties awaiting document & ownership audit.
+  - **Completed & Verified Applications**: Approved listings passed to the media upload stage.
+  - **Rejected Applications**: Declined listings.
 - **Auditing Workflow**:
-  - **Pending Review**: Interactive audit queue with one-click action selector (`Completed` / `Rejected`).
-  - **Accepted Listings**: Displays all listings approved by the auditor with verified badges.
-  - **Rejected Listings**: Dedicated view of rejected applications.
-  - **All Applications**: Unified overview of all property submissions across the platform.
-- **Multi-Property Resolution**: Address-aware row identification and deduplication supporting multiple properties per owner.
-- **Instant Search**: Real-time client-side search across property names, owners, contact numbers, addresses, and statuses.
+  - Inspect property specifications, ownership type, address, and deed record.
+  - One-click action selector:
+    - **`Completed` / `Accepted`** &rarr; Updates status to `Accepted_By_ListingAuditor`.
+    - **`Rejected`** &rarr; Updates status to `Rejected_By_ListingAuditor`.
+- **Deduplication & Multi-Property Support**: Full support for single owners with multiple property listings.
+
+---
+
+### 🏢 Property Manager Dashboard (`/propertymanager`)
+- **Dedicated Management Role**: Separate dashboard and credentials for Property Managers with direct redirection from `/admin`.
+- **Media Review Queue (`UploadImagesByUser`)**:
+  - Consumes `/api/v1/propertyimageupload` for incoming properties with uploaded angle photos.
+- **Comprehensive Media & Deed Inspection Modal**:
+  - **Owner & Contact Details**: Contact name, phone link, and current pipeline stage.
+  - **Property Specifications**: Category, tenure/ownership type, and complete address.
+  - **Deed Record & Reference**: View deed details, click **Copy Ref** to clipboard, or open attached deed documents via **Open Document**.
+  - **5 Verified Angle Photos**: High-resolution gallery preview with click-to-enlarge lightbox modal.
+  - **Infrastructure & Landmarks**: Visual cards for nearby Metro, Police Station, Hospital, and Market.
+- **Approval & Active Portfolio Integration**:
+  - Actions directly accessible from the table action dropdown or inspection modal footer:
+    - **`Accept / Mark Completed`** &rarr; Updates status to **`Accepted_By_PropertyManager`**, moving the property into **Active Properties / Live Portfolio**.
+    - **`Reject Property`** &rarr; Updates status to **`Rejected_By_PropertyManager`**.
 
 ---
 
@@ -53,15 +89,50 @@ EstateSync is a modern, full-stack real estate marketplace and listing verificat
 
 ---
 
+## 🔄 Multi-Tier Verification & Status Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Submitted: Owner submits via Post Property Modal
+    
+    state "Tier 1: Listing Auditor Review" as Tier1 {
+        Submitted: Status = 'Submitted'
+        Submitted --> Accepted_By_ListingAuditor: Auditor approves deed
+        Submitted --> Rejected_By_ListingAuditor: Auditor rejects deed
+    }
+
+    state "Tier 2: Owner Media Upload" as Tier2 {
+        Accepted_By_ListingAuditor --> UploadImagesByUser: Owner uploads 5 Angle Photos & Landmarks
+    }
+
+    state "Tier 3: Property Manager Inspection" as Tier3 {
+        UploadImagesByUser --> Accepted_By_PropertyManager: Manager verifies photos & landmarks
+        UploadImagesByUser --> Rejected_By_PropertyManager: Manager rejects media
+    }
+
+    state "Platform Live Portfolio" as Live {
+        Accepted_By_PropertyManager: 100% Operational & Live for Buyers / Tenants
+    }
+
+    state "Declined Archives" as Rejected {
+        Rejected_By_ListingAuditor: Deed Verification Failed
+        Rejected_By_PropertyManager: Media Inspection Failed
+    }
+```
+
+---
+
 ## 🛠️ Architecture & Tech Stack
 
 ```mermaid
 graph TD
     Client["Frontend (React 19 + TypeScript + Vite)"]
     API["Backend (Python / Flask-RESTful API)"]
+    Uploads["Static Uploads (/static/uploads/contact_id/indprop_id/)"]
     DB[("PostgreSQL Database (realestate)")]
 
-    Client -- "HTTP / JSON REST APIs" --> API
+    Client -- "HTTP / REST JSON & FormData" --> API
+    API -- "Store 5 Angle Photos" --> Uploads
     API -- "SQLAlchemy ORM & Raw SQL" --> DB
 ```
 
@@ -77,6 +148,7 @@ graph TD
 - **Framework**: [Flask](https://flask.palletsprojects.com/) + [Flask-RESTful](https://flask-restful.readthedocs.io/)
 - **ORM / Database Tooling**: [SQLAlchemy](https://www.sqlalchemy.org/) / [Flask-SQLAlchemy](https://flask-sqlalchemy.palletsprojects.com/)
 - **Database Driver**: `psycopg2`
+- **File Uploads & Security**: `werkzeug.utils.secure_filename`, `uuid`
 - **Environment**: `python-dotenv`
 
 ### Database
@@ -90,42 +162,47 @@ graph TD
 ProjectRE/
 ├── backend/
 │   ├── app/
-│   │   ├── __init__.py                # Flask app factory, CORS & session config
-│   │   ├── extension.py               # SQLAlchemy instance
+│   │   ├── __init__.py                     # Flask app factory, static uploads route & CORS
+│   │   ├── extension.py                    # SQLAlchemy database instance
+│   │   ├── static/
+│   │   │   └── uploads/                    # Physical store: /<contact_id>/<indprop_id>/<images>
 │   │   └── api/
 │   │       └── v1/
 │   │           ├── __init__.py
-│   │           ├── routes.py          # API v1 blueprint & resource mappings
-│   │           └── real_estate.py     # API resource classes & database operations
-│   ├── rendering_routes.py            # Static/SSR routes
-│   ├── run.py                         # Backend entry point (Port 5000)
-│   └── app.env                        # Database connection & backend environment
+│   │           ├── routes.py               # Blueprint & API endpoint registration
+│   │           ├── real_estate.py          # Auditor, auth & property submission resources
+│   │           └── propertyimageupload.py  # 5-angle photo upload & PropertyManagerCompleted
+│   ├── rendering_routes.py                 # Static SSR routes
+│   ├── run.py                              # Backend entry point (Port 5000)
+│   └── app.env                             # Database connection & secret key
 │
 ├── frontend/
-│   ├── public/                        # Static assets
+│   ├── public/                             # Static assets
 │   ├── src/
 │   │   ├── auth/
-│   │   │   └── Login.tsx              # User login screen
+│   │   │   └── Login.tsx                   # User login screen
 │   │   ├── components/
-│   │   │   ├── Header.tsx             # Main navigation header
-│   │   │   ├── Footer.tsx             # Global footer
-│   │   │   ├── MapComponent.tsx       # Leaflet interactive map
-│   │   │   └── PostPropertyModal.tsx  # Multi-step property posting modal
+│   │   │   ├── Header.tsx                  # Navigation header with Accepted Listings Bell
+│   │   │   ├── Footer.tsx                  # Global footer
+│   │   │   ├── MapComponent.tsx            # Leaflet interactive map
+│   │   │   ├── PostPropertyModal.tsx       # Initial property submission modal
+│   │   │   └── UploadPropertyImagesModal.tsx # 5-angle photo & landmark upload modal
 │   │   ├── context/
-│   │   │   └── AuthContext.tsx        # Global auth & session provider
+│   │   │   └── AuthContext.tsx             # Global authentication & session provider
 │   │   ├── pages/
-│   │   │   ├── Home.tsx               # Homepage with hero search & map
-│   │   │   ├── Admin.tsx              # Admin login & account creation
-│   │   │   ├── LisitngDashboard.tsx   # Executive Listing Auditor Dashboard
-│   │   │   ├── Dashboard.tsx          # Dashboard alias
-│   │   │   └── Profile.tsx            # User profile view
-│   │   ├── App.tsx                    # Routes & layout definition
-│   │   └── main.tsx                   # React app entry point
-│   ├── package.json                   # Frontend dependencies & scripts
-│   ├── vite.config.ts                 # Vite bundler configuration & proxy
-│   └── tsconfig.json                  # TypeScript compiler settings
+│   │   │   ├── Home.tsx                    # Homepage with search & nearby properties
+│   │   │   ├── Admin.tsx                   # Admin login with role-based routing
+│   │   │   ├── LisitngDashboard.tsx        # Listing Auditor Dashboard
+│   │   │   ├── PropertyManager.tsx         # Property Manager Dashboard & Media Inspection
+│   │   │   ├── Dashboard.tsx               # Dashboard alias
+│   │   │   └── Profile.tsx                 # User profile view
+│   │   ├── App.tsx                         # Client routes & layout definition
+│   │   └── main.tsx                        # React application entry point
+│   ├── package.json                        # Frontend dependencies & scripts
+│   ├── vite.config.ts                      # Vite configuration & proxy routes (/api, /static)
+│   └── tsconfig.json                       # TypeScript compiler settings
 │
-└── README.md                          # Project documentation
+└── README.md                               # Project documentation
 ```
 
 ---
@@ -138,8 +215,10 @@ The platform relies on PostgreSQL with the following core relational tables:
 erDiagram
     Role ||--o{ Adminlogin : "assigned to"
     contacts ||--o{ IndividualPropertyDetails : "owns"
+    contacts ||--o{ PropertyUploadImage : "uploads"
     PropertyTypeMaster ||--o{ IndividualPropertyDetails : "categorizes"
     OwnerTypeMaster ||--o{ IndividualPropertyDetails : "specifies"
+    IndividualPropertyDetails ||--o{ PropertyUploadImage : "has media for"
 
     Role {
         int RoleId PK
@@ -170,6 +249,7 @@ erDiagram
     }
 
     IndividualPropertyDetails {
+        int id PK
         int contact_id FK
         string Propertyname
         int Propertytype FK
@@ -177,6 +257,21 @@ erDiagram
         string Propertyaddress
         string Ownershipproof
         string Status
+    }
+
+    PropertyUploadImage {
+        int ImageId PK
+        int contact_id FK
+        int indprop_id FK
+        string FrontExteriorAngle
+        string LivingRoomMainHall
+        string MasterBedroomAngle
+        string KitchenDiningSpace
+        string BalconyWashroomAngle
+        string NearestMetroStation
+        string NearestPoliceStation
+        string NearestHospital
+        string NearestShoppingMarket
     }
 ```
 
@@ -186,42 +281,30 @@ erDiagram
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/v1/roltypemaster` | Retrieve all master admin roles (`RoleId`, `RoleType`). |
+| `GET` | `/api/v1/roltypemaster` | Retrieve master admin roles (`RoleId`, `RoleType`). |
 | `GET`, `POST` | `/api/v1/saveadmincontactdetails` | Authenticate an admin or register a new administrative account. |
-| `GET`, `POST` | `/api/v1/savecontactdetails` | Query or register contact/owner details (`name`, `mobile_number`). |
-| `GET` | `/api/v1/populatepropertytype` | Fetch all property categories (e.g. Penthouse, Plot/Land, Villa). |
+| `GET`, `POST` | `/api/v1/savecontactdetails` | Query or register owner contact details (`name`, `mobile_number`). |
+| `GET` | `/api/v1/populatepropertytype` | Fetch all property categories (e.g., Penthouse, Plot/Land, Villa). |
 | `GET` | `/api/v1/populateownershiptype` | Fetch ownership classifications (Freehold, Leasehold, POA). |
-| `POST` | `/api/v1/saveindividualpropertydetails` | Submit property listing with status `'Submitted'`. |
-| `GET` | `/api/v1/pendingapplicationlistingauditor` | Retrieve pending property applications (`Status = 'Submitted'`). |
-| `GET` | `/api/v1/completedapplicationlistingauditor` | Retrieve audited listings (`Accepted_By_ListingAuditor` or `Rejected_By_ListingAuditor`). |
+| `POST` | `/api/v1/saveindividualpropertydetails` | Initial property submission with status `'Submitted'`. |
+| `GET` | `/api/v1/pendingapplicationlistingauditor` | Retrieve pending listings for Listing Auditor (`Status = 'Submitted'`). |
+| `GET` | `/api/v1/completedapplicationlistingauditor` | Retrieve audited listings (`Accepted_By_ListingAuditor` / `Rejected_By_ListingAuditor`). |
 | `GET`, `POST` | `/api/v1/listingauditorstatusapproved` | Update listing status to `Accepted_By_ListingAuditor` or `Rejected_By_ListingAuditor`. |
+| `GET` | `/api/v1/propertyimageupload` | Retrieve pending media review listings (`Status = 'UploadImagesByUser'`). |
+| `POST` | `/api/v1/propertyimageupload` | Upload 5 angle photos (500 KB limit) and landmarks; updates status to `UploadImagesByUser`. |
+| `GET` | `/api/v1/propertymanagercompleted` | Retrieve completed listings (`Accepted_By_PropertyManager` and `Rejected_By_PropertyManager`). |
+| `POST` | `/api/v1/propertymanagercompleted` | Transitions status from `UploadImagesByUser` to `Accepted_By_PropertyManager` or `Rejected_By_PropertyManager`. |
 
 ---
 
-## 🔄 Audit & Status Lifecycle
+## 🖼️ Static Asset Serving (`/static/uploads`)
 
-```mermaid
-stateDiagram-v2
-    [*] --> Submitted: Owner submits via Post Property Modal
-    
-    state "Pending Application Queue" as Submitted {
-        S1: Status = 'Submitted'
-        S2: Awaiting Auditor Review
-    }
-
-    Submitted --> Accepted_By_ListingAuditor: Auditor selects 'Completed'
-    Submitted --> Rejected_By_ListingAuditor: Auditor selects 'Rejected'
-
-    state "Live on Public Portal" as Accepted_By_ListingAuditor {
-        A1: 100% Verified
-        A2: Appears in 'Accepted Listings'
-    }
-
-    state "Archived / Rejected Queue" as Rejected_By_ListingAuditor {
-        R1: Audit Declined
-        R2: Appears in 'Rejected Listings'
-    }
+Uploaded photos and ownership deed documents are stored in structured directories:
 ```
+backend/app/static/uploads/<contact_id>/<indprop_id>/<angle_filename>.jpg
+```
+
+Served via Flask route `/static/uploads/<path:filename>` and proxied transparently by Vite to `http://127.0.0.1:5000/static/uploads/`.
 
 ---
 
@@ -255,7 +338,7 @@ stateDiagram-v2
 
 3. **Install dependencies**:
    ```bash
-   pip install flask flask-restful flask-sqlalchemy psycopg2-binary python-dotenv sqlalchemy
+   pip install flask flask-restful flask-sqlalchemy psycopg2-binary python-dotenv sqlalchemy werkzeug
    ```
 
 4. **Configure Database Connection**:
@@ -305,16 +388,23 @@ SECRET_KEY = "real_estate"
 ```
 
 ### Frontend Proxy (`frontend/vite.config.ts`)
-Vite proxies API calls starting with `/api` to the Flask backend running on port `5000`:
+Vite proxies API calls and static assets to the Flask backend running on port `5000`:
 ```typescript
 server: {
   proxy: {
     '/api': {
       target: 'http://127.0.0.1:5000',
       changeOrigin: true,
-      secure: false
-    }
-  }
+    },
+    '/static': {
+      target: 'http://127.0.0.1:5000',
+      changeOrigin: true,
+    },
+    '/uploads': {
+      target: 'http://127.0.0.1:5000',
+      changeOrigin: true,
+    },
+  },
 }
 ```
 
@@ -322,6 +412,4 @@ server: {
 
 ## 📄 License
 
-This project is developed for real estate listing management and auditing. All rights reserved.
-
-
+This project is developed for real estate listing management, auditing, and media inspection. All rights reserved.

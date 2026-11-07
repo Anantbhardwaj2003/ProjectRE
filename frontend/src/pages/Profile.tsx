@@ -14,11 +14,19 @@ interface ContactData {
 }
 
 export default function Profile() {
-  const { user, contactId, contactMobile } = useAuth();
+  const { user, contactId, contactMobile, isLoadingAuth } = useAuth();
   
   const [profileName, setProfileName] = useState<string>(user || '');
   const [profileMobile, setProfileMobile] = useState<string>(contactMobile || '');
   const [loading, setLoading] = useState<boolean>(true);
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="h-6 w-6 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   if (!user && !contactMobile && !profileName) {
     return <Navigate to="/login" replace />;

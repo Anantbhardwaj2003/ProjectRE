@@ -1,5 +1,5 @@
 from flask_restful import Resource, reqparse
-from flask import session, request, url_for, current_app
+from flask import session, request, url_for, current_app, make_response
 from sqlalchemy import text
 from ...extension import db
 
@@ -194,16 +194,34 @@ class SaveContactDetails(Resource):
                 query = text("SELECT contact_id, name, mobile_number FROM contacts WHERE mobile_number = :mobile_number ORDER BY contact_id DESC")
                 result = db.session.execute(query, {'mobile_number': clean_mobile}).fetchone()
                 if result:
-                    return {
-                        'contact_id': result[0],
-                        'name': result[1],
-                        'mobile_number': result[2],
+                    c_id = result[0]
+                    u_name = result[1]
+                    u_mobile = result[2]
+
+                    # Establish server session only (inside the secure HTTP-only 'session' cookie)
+                    session['user'] = u_name
+                    session['contact_id'] = c_id
+                    session['mobile_number'] = u_mobile
+                    session['role'] = 'user'
+                    session.permanent = True
+
+                    res = make_response({
+                        'contact_id': c_id,
+                        'name': u_name,
+                        'mobile_number': u_mobile,
                         'contact': {
-                            'contact_id': result[0],
-                            'name': result[1],
-                            'mobile_number': result[2]
+                            'contact_id': c_id,
+                            'name': u_name,
+                            'mobile_number': u_mobile
                         }
-                    }, 200
+                    }, 200)
+
+                    # Delete any legacy plain-text cookies so only 'session' exists
+                    res.delete_cookie('estatesync_user', path='/')
+                    res.delete_cookie('estatesync_contact_id', path='/')
+                    res.delete_cookie('estatesync_mobile', path='/')
+                    res.delete_cookie('estatesync_role', path='/')
+                    return res
                 return {'error': 'Contact not found'}, 404
 
             else:
@@ -231,7 +249,20 @@ class SaveContactDetails(Resource):
             result = db.session.execute(query, {'name': name, 'mobile_number': mobile_number})
             contact_id = result.scalar()
             db.session.commit()
-            return {'message': 'Contact details saved successfully', 'contact_id': contact_id}, 200
+
+            session['user'] = name
+            session['contact_id'] = contact_id
+            session['mobile_number'] = mobile_number
+            session['role'] = 'user'
+            session.permanent = True
+
+            res = make_response({'message': 'Contact details saved successfully', 'contact_id': contact_id}, 200)
+            # Delete any legacy plain-text cookies so only 'session' exists
+            res.delete_cookie('estatesync_user', path='/')
+            res.delete_cookie('estatesync_contact_id', path='/')
+            res.delete_cookie('estatesync_mobile', path='/')
+            res.delete_cookie('estatesync_role', path='/')
+            return res
         except Exception as e:
             db.session.rollback()
             return {'error': str(e)}, 500
@@ -462,19 +493,39 @@ class CompletedApplicationListingAuditor(Resource):
 
     def get(self):
         contact_id = request.args.get('contact_id', type=int)
+        mobile_number = request.args.get('mobile_number') or request.args.get('mobile')
+        owner_name = request.args.get('name') or request.args.get('owner') or request.args.get('username')
         status_filter = (request.args.get('status') or 'all').strip()
+
+        clean_mob = mobile_number.strip() if mobile_number else ''
+        digits = ''.join(filter(str.isdigit, clean_mob))[-10:] if clean_mob else ''
 
         try:
             # Summary counts across public.IndividualPropertyDetails
-            counts_query = text("""
+            counts_query_str = """
                 SELECT 
                     COUNT(*) as total_count,
                     COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) IN ('submitted', 'pending', '') OR Status IS NULL THEN 1 END) as pending_count,
-                    COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr') THEN 1 END) as accepted_count,
+                    COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed') THEN 1 END) as accepted_count,
                     COUNT(CASE WHEN LOWER(TRIM(COALESCE(Status, ''))) = 'rejected_by_listingauditor' THEN 1 END) as rejected_count
                 FROM public.IndividualPropertyDetails
-            """)
-            counts_row = db.session.execute(counts_query).fetchone()
+            """
+            c_conds = []
+            c_params = {}
+            if digits:
+                c_conds.append("contact_id IN (SELECT contact_id FROM contacts WHERE mobile_number LIKE :mobile_pattern)")
+                c_params['mobile_pattern'] = f"%{digits}%"
+            elif contact_id:
+                c_conds.append("contact_id = :contact_id")
+                c_params['contact_id'] = contact_id
+
+            if owner_name:
+                c_conds.append("contact_id IN (SELECT contact_id FROM contacts WHERE LOWER(TRIM(name)) = LOWER(TRIM(:owner_name)))")
+                c_params['owner_name'] = owner_name.strip()
+            if c_conds:
+                counts_query_str += f" WHERE ({' OR '.join(c_conds)})"
+
+            counts_row = db.session.execute(text(counts_query_str), c_params).fetchone()
             total_count = counts_row[0] if counts_row else 0
             pending_count = counts_row[1] if counts_row else 0
             accepted_count = counts_row[2] if counts_row else 0
@@ -499,16 +550,27 @@ class CompletedApplicationListingAuditor(Resource):
             conditions = []
             params = {}
 
-            if status_filter.lower() in ['accepted', 'accepted_by_listingauditor', 'accepted_by_listingaudiotr']:
-                conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr')")
+            if status_filter.lower() in ['accepted', 'accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed']:
+                conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed')")
             elif status_filter.lower() in ['rejected', 'rejected_by_listingauditor']:
                 conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) = 'rejected_by_listingauditor'")
             else:
-                conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'rejected_by_listingauditor')")
+                conditions.append("LOWER(TRIM(COALESCE(i.Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed', 'rejected_by_listingauditor')")
 
-            if contact_id:
-                conditions.append("i.contact_id = :contact_id")
+            owner_conditions = []
+            if digits:
+                owner_conditions.append("(c.mobile_number LIKE :mobile_pattern OR i.contact_id IN (SELECT contact_id FROM contacts WHERE mobile_number LIKE :mobile_pattern))")
+                params['mobile_pattern'] = f"%{digits}%"
+            elif contact_id:
+                owner_conditions.append("i.contact_id = :contact_id")
                 params['contact_id'] = contact_id
+
+            if owner_name:
+                owner_conditions.append("(LOWER(TRIM(c.name)) = LOWER(TRIM(:owner_name)) OR i.contact_id IN (SELECT contact_id FROM contacts WHERE LOWER(TRIM(name)) = LOWER(TRIM(:owner_name))))")
+                params['owner_name'] = owner_name.strip()
+
+            if owner_conditions:
+                conditions.append(f"({' OR '.join(owner_conditions)})")
 
             if conditions:
                 query_str += " WHERE " + " AND ".join(conditions)
@@ -532,7 +594,7 @@ class CompletedApplicationListingAuditor(Resource):
 
             accepted_listings = [
                 l for l in listings 
-                if str(l.get('Status') or l.get('status') or '').strip().lower() in ['accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'accepted']
+                if str(l.get('Status') or l.get('status') or '').strip().lower() in ['accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'accepted', 'completed']
             ]
             rejected_listings = [
                 l for l in listings 
@@ -544,8 +606,8 @@ class CompletedApplicationListingAuditor(Resource):
                 'status_filter': status_filter,
                 'count': len(listings),
                 'total_completed': len(listings),
-                'accepted_count': accepted_count or len(accepted_listings),
-                'rejected_count': rejected_count or len(rejected_listings),
+                'accepted_count': len(accepted_listings),
+                'rejected_count': len(rejected_listings),
                 'pending_count': pending_count,
                 'total_count': total_count,
                 'completed_listings': listings,
@@ -561,16 +623,27 @@ class CompletedApplicationListingAuditor(Resource):
                 conditions = []
                 params = {}
 
-                if status_filter.lower() in ['accepted', 'accepted_by_listingauditor', 'accepted_by_listingaudiotr']:
-                    conditions.append("LOWER(TRIM(COALESCE(Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr')")
+                if status_filter.lower() in ['accepted', 'accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed']:
+                    conditions.append("LOWER(TRIM(COALESCE(Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed')")
                 elif status_filter.lower() in ['rejected', 'rejected_by_listingauditor']:
                     conditions.append("LOWER(TRIM(COALESCE(Status, ''))) = 'rejected_by_listingauditor'")
                 else:
-                    conditions.append("LOWER(TRIM(COALESCE(Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'rejected_by_listingauditor')")
+                    conditions.append("LOWER(TRIM(COALESCE(Status, ''))) IN ('accepted_by_listingauditor', 'accepted_by_listingaudiotr', 'completed', 'rejected_by_listingauditor')")
 
-                if contact_id:
-                    conditions.append("contact_id = :contact_id")
+                fb_owner_conds = []
+                if digits:
+                    fb_owner_conds.append("contact_id IN (SELECT contact_id FROM contacts WHERE mobile_number LIKE :mobile_pattern)")
+                    params['mobile_pattern'] = f"%{digits}%"
+                elif contact_id:
+                    fb_owner_conds.append("contact_id = :contact_id")
                     params['contact_id'] = contact_id
+
+                if owner_name:
+                    fb_owner_conds.append("contact_id IN (SELECT contact_id FROM contacts WHERE LOWER(TRIM(name)) = LOWER(TRIM(:owner_name)))")
+                    params['owner_name'] = owner_name.strip()
+
+                if fb_owner_conds:
+                    conditions.append(f"({' OR '.join(fb_owner_conds)})")
 
                 if conditions:
                     fallback_str += " WHERE " + " AND ".join(conditions)
@@ -711,3 +784,68 @@ class ListingAuditorStatusApproved(Resource):
         except Exception as e:
             db.session.rollback()
             return {'error': str(e)}, 500
+
+class AuthSession(Resource):
+    def options(self):
+        return {}, 200
+
+    def get(self):
+        # Read strictly from the secure, HttpOnly Flask session cookie
+        user = session.get('user')
+        contact_id = session.get('contact_id')
+        mobile = session.get('mobile_number')
+        role = session.get('role')
+
+        if user:
+            return {
+                'authenticated': True,
+                'user': user,
+                'contact_id': contact_id,
+                'mobile_number': mobile,
+                'role': role or 'user'
+            }, 200
+
+        return {'authenticated': False, 'user': None}, 200
+
+    def post(self):
+        data = request.get_json(silent=True) or request.form or {}
+        user = data.get('name') or data.get('user')
+        contact_id = data.get('contact_id')
+        mobile = data.get('mobile_number') or data.get('mobile')
+        role = data.get('role') or 'user'
+
+        if not user and not mobile:
+            return {'error': 'User name or mobile is required'}, 400
+
+        # Store user auth session exclusively in the cryptographically signed Flask session cookie
+        session['user'] = user
+        session['contact_id'] = contact_id
+        session['mobile_number'] = mobile
+        session['role'] = role
+        session.permanent = True
+
+        res = make_response({
+            'message': 'Session established successfully in secure session cookie',
+            'authenticated': True,
+            'user': user,
+            'contact_id': contact_id,
+            'mobile_number': mobile,
+            'role': role
+        }, 200)
+
+        # Ensure no plain-text custom cookies are set, and delete any legacy ones
+        res.delete_cookie('estatesync_user', path='/')
+        res.delete_cookie('estatesync_role', path='/')
+        res.delete_cookie('estatesync_contact_id', path='/')
+        res.delete_cookie('estatesync_mobile', path='/')
+
+        return res
+
+    def delete(self):
+        session.clear()
+        res = make_response({'message': 'Logged out successfully', 'authenticated': False}, 200)
+        res.delete_cookie('estatesync_user', path='/')
+        res.delete_cookie('estatesync_role', path='/')
+        res.delete_cookie('estatesync_contact_id', path='/')
+        res.delete_cookie('estatesync_mobile', path='/')
+        return res

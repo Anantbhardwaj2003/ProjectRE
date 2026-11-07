@@ -110,11 +110,11 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-900/40 to-gray-900/90"></div>
         </div>
         
-        <div className="relative z-20">
+        <div className="relative z-50">
           <Header onPostPropertyClick={() => setIsPostModalOpen(true)} />
         </div>
 
-        <div className="relative z-30 mx-auto w-full px-4 pt-16 sm:pt-24 flex flex-col items-center text-center">
+        <div className="relative z-10 mx-auto w-full px-4 pt-16 sm:pt-24 flex flex-col items-center text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-md">
             Find your next perfect space.
           </h1>

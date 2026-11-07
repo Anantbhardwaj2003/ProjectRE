@@ -15,3 +15,4 @@ api_v1.add_resource(real_estate.SaveIndividualPropertyDetails, f'{url}/saveindiv
 api_v1.add_resource(real_estate.PendingApplicationListingAuditor, f'{url}/pendingapplicationlistingauditor')
 api_v1.add_resource(real_estate.CompletedApplicationListingAuditor, f'{url}/completedapplicationlistingauditor')
 api_v1.add_resource(real_estate.ListingAuditorStatusApproved, f'{url}/listingauditorstatusapproved')
+api_v1.add_resource(real_estate.AuthSession, f'{url}/auth/session')

@@ -111,6 +111,7 @@ export default function Admin() {
 
         let res = await fetch('/api/v1/saveadmincontactdetails', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
@@ -118,6 +119,7 @@ export default function Admin() {
         if (!res.ok && (res.status === 404 || res.status === 502)) {
           res = await fetch('http://127.0.0.1:5000/api/v1/saveadmincontactdetails', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
@@ -146,10 +148,14 @@ export default function Admin() {
           password: password.trim(),
         });
 
-        let res = await fetch(`/api/v1/saveadmincontactdetails?${queryParams.toString()}`);
+        let res = await fetch(`/api/v1/saveadmincontactdetails?${queryParams.toString()}`, {
+          credentials: 'include',
+        });
 
         if (!res.ok && (res.status === 404 || res.status === 502)) {
-          res = await fetch(`http://127.0.0.1:5000/api/v1/saveadmincontactdetails?${queryParams.toString()}`);
+          res = await fetch(`http://127.0.0.1:5000/api/v1/saveadmincontactdetails?${queryParams.toString()}`, {
+            credentials: 'include',
+          });
         }
 
         const data = await res.json().catch(() => ({}));

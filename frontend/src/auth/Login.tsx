@@ -65,11 +65,15 @@ export default function Login() {
     if (isLogin) {
       // Login Flow via Mobile Number
       try {
-        let response = await fetch(`/api/v1/savecontactdetails?mobile_number=${cleanedMobile}`);
+        let response = await fetch(`/api/v1/savecontactdetails?mobile_number=${cleanedMobile}`, {
+          credentials: 'include',
+        });
         
         // Fallback for development server proxy
         if (!response.ok && (response.status === 404 || response.status === 502)) {
-          const directRes = await fetch(`http://127.0.0.1:5000/api/v1/savecontactdetails?mobile_number=${cleanedMobile}`);
+          const directRes = await fetch(`http://127.0.0.1:5000/api/v1/savecontactdetails?mobile_number=${cleanedMobile}`, {
+            credentials: 'include',
+          });
           if (directRes.ok || directRes.status === 404) {
             response = directRes;
           }
@@ -105,6 +109,7 @@ export default function Login() {
       try {
         let response = await fetch('/api/v1/savecontactdetails', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: fullName.trim(),
@@ -115,6 +120,7 @@ export default function Login() {
         if (!response.ok && (response.status === 404 || response.status === 502)) {
           response = await fetch('http://127.0.0.1:5000/api/v1/savecontactdetails', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               name: fullName.trim(),

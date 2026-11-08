@@ -86,6 +86,7 @@ EstateSync is an enterprise-grade, full-stack real estate marketplace, listing a
 <img width="1918" height="912" alt="Screenshot 2026-11-07 123345" src="https://github.com/user-attachments/assets/51a72558-143f-4923-8038-1ba870e5b1f1" />
 <img width="1918" height="917" alt="Screenshot 2026-11-07 163908" src="https://github.com/user-attachments/assets/702fc3a9-98c9-4b5f-8dd1-66dd1fed1e5a" />
 <img width="1917" height="911" alt="Screenshot 2026-11-07 154257" src="https://github.com/user-attachments/assets/d624ef47-1f5a-4ed2-b902-71182442ca00" />
+<img width="1918" height="911" alt="Screenshot 2026-11-08 095020" src="https://github.com/user-attachments/assets/76a776ef-66dc-4e33-b48f-c6d62946b89e" />
 
 ---
 

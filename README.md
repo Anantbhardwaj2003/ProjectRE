@@ -321,31 +321,6 @@ erDiagram
         string Reason
     }
 ```
-
-### PostgreSQL DDL for `SuperAdminFinalAction`
-```sql
-CREATE TABLE public.SuperAdminFinalAction (
-    ActionId SERIAL PRIMARY KEY,
-    ImageId INTEGER,
-    contact_id INTEGER NOT NULL,
-    indprop_id INTEGER NOT NULL,
-    AdminStatus VARCHAR(50) NOT NULL,
-    Reason TEXT,
-    CONSTRAINT fk_image 
-        FOREIGN KEY (ImageId) 
-        REFERENCES public.PropertyUploadImage (ImageId)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_contact 
-        FOREIGN KEY (contact_id) 
-        REFERENCES public.contacts (contact_id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_indprop
-        FOREIGN KEY (indprop_id)
-        REFERENCES public.IndividualPropertyDetails (IndProp_Id)
-        ON DELETE CASCADE
-);
-```
-
 ---
 
 ## 🔌 API Reference (`/api/v1`)

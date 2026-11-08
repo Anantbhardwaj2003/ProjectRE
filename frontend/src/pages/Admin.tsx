@@ -270,32 +270,22 @@ export default function Admin() {
                 <span className="text-2xl font-extrabold tracking-tight text-white block leading-tight">
                   EstateSync
                 </span>
-                <span className="text-[11px] font-bold text-blue-300 tracking-wider uppercase">
-                  Admin Gateway
-                </span>
               </div>
             </Link>
 
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white text-xs font-semibold tracking-wide uppercase mt-6 backdrop-blur-md shadow-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Enterprise Command Center</span>
+              <span>Enterprise Level Management</span>
             </div>
           </div>
           
           {/* Hero Copy & Frosted Feature Card */}
           <div className="relative z-10">
-            <h2 className="text-2xl lg:text-3xl font-extrabold leading-tight mb-2.5 text-white drop-shadow-sm">
-              Unified Real Estate Governance.
-            </h2>
-            <p className="text-gray-200 text-xs sm:text-sm leading-relaxed mb-5">
-              Secure, role-based administrative control over master property types, listings approval, ownership records, and verified user inquiries.
-            </p>
-
             {/* Frosted Glassmorphism Feature List */}
             <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-4 space-y-2.5 shadow-xl">
               <div className="flex items-center gap-2.5 text-xs sm:text-sm text-gray-100 font-medium">
                 <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>Role-Based Access Control (RBAC)</span>
+                <span>Real Estate Access Management</span>
               </div>
               <div className="flex items-center gap-2.5 text-xs sm:text-sm text-gray-100 font-medium">
                 <Building2 className="h-4 w-4 text-sky-400 shrink-0" />
@@ -303,7 +293,7 @@ export default function Admin() {
               </div>
               <div className="flex items-center gap-2.5 text-xs sm:text-sm text-gray-100 font-medium">
                 <KeyRound className="h-4 w-4 text-amber-300 shrink-0" />
-                <span>Direct Postgres Database Authentication</span>
+                <span>Direct Access to Database</span>
               </div>
             </div>
 

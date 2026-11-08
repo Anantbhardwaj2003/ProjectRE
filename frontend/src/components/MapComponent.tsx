@@ -25,8 +25,14 @@ function MapUpdater({ properties }: { properties: Property[] }) {
   return null;
 }
 
-// Create a custom icon using a simple dot or HTML
-const createCustomIcon = (imageUrl: string, price: string) => {
+// Create a custom icon using a circular image pin and floating property name badge
+const createCustomIcon = (imageUrl: string, propertyName: string) => {
+  const escapedName = (propertyName || 'Property')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
   return L.divIcon({
     className: '', // Empty class removes leaflet's default icon sizing constraints that cause text squishing
     html: `<div style="
@@ -37,21 +43,25 @@ const createCustomIcon = (imageUrl: string, price: string) => {
              display: flex;
              justify-content: center;
            ">
-             <!-- Price tag floating above -->
+             <!-- Property Name floating badge -->
              <div style="
                position: absolute;
-               top: -24px;
+               top: -26px;
                background-color: white;
                color: #0f172a;
-               padding: 2px 8px;
+               padding: 3px 8px;
                border-radius: 12px;
-               font-weight: 800;
+               font-weight: 700;
                font-size: 11px;
-               box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+               box-shadow: 0 2px 5px rgba(0,0,0,0.22);
                white-space: nowrap;
-               border: 1px solid #e2e8f0;
+               max-width: 150px;
+               overflow: hidden;
+               text-overflow: ellipsis;
+               border: 1px solid #cbd5e1;
                z-index: 20;
-             ">${price}</div>
+               text-align: center;
+             " title="${escapedName}">${escapedName}</div>
              
              <!-- Teardrop shape -->
              <div style="
@@ -67,7 +77,7 @@ const createCustomIcon = (imageUrl: string, price: string) => {
              "></div>
              
              <!-- Image -->
-             <img src="${imageUrl}" style="
+             <img src="${imageUrl}" alt="${escapedName}" style="
                position: absolute;
                top: 4px;
                left: 7px;
@@ -132,10 +142,11 @@ export default function MapComponent({ properties }: MapComponentProps) {
     }
   };
 
-  // Center roughly on India if no properties, otherwise we rely on MapUpdater
-  const center: [number, number] = properties.length > 0 && properties[0].coordinates
-    ? properties[0].coordinates
-    : [20.5937, 78.9629]; 
+  // Center on first valid property coordinate or Delhi NCR default
+  const validPropWithCoords = properties.find(p => p.coordinates);
+  const center: [number, number] = validPropWithCoords && validPropWithCoords.coordinates
+    ? validPropWithCoords.coordinates
+    : [28.4089, 77.3178]; 
 
   // Placeholder amenities
   const defaultAmenities = ['Swimming Pool', 'Gymnasium', '24/7 Security', 'Power Backup', 'Club House', 'Park'];
@@ -150,8 +161,8 @@ export default function MapComponent({ properties }: MapComponentProps) {
       >
         <MapUpdater properties={properties} />
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
         {properties.map((property) => {
@@ -161,7 +172,7 @@ export default function MapComponent({ properties }: MapComponentProps) {
             <Marker 
               key={property.id} 
               position={property.coordinates}
-              icon={createCustomIcon(property.imageUrl, property.price)}
+              icon={createCustomIcon(property.imageUrl, property.title || property.Propertyname || 'Property')}
             >
               <Popup className="property-popup">
                 <div className="w-56 p-1 relative group">
@@ -256,19 +267,20 @@ export default function MapComponent({ properties }: MapComponentProps) {
                   <div className="space-y-2 text-sm">
                     <p className="flex justify-between border-b border-blue-100 pb-1">
                       <span className="text-blue-700">Owner Name</span>
-                      <span className="font-medium text-blue-900">Mr. Sharma</span>
+                      <span className="font-medium text-blue-900">{enlargedProperty.contact_name || enlargedProperty.agent || 'Owner on record'}</span>
                     </p>
                     <p className="flex justify-between border-b border-blue-100 pb-1">
                       <span className="text-blue-700">Direct Contact</span>
-                      <span className="font-medium text-blue-900">+91 98765 43210</span>
+                      <span className="font-medium text-blue-900">{enlargedProperty.contact_mobile || 'Contact on record'}</span>
                     </p>
                     <p className="flex justify-between items-center">
                       <span className="text-blue-700">Documents</span>
                       <span 
                         onClick={() => setShowDocument(true)}
-                        className="font-medium text-blue-600 hover:underline cursor-pointer flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-blue-200"
+                        className="font-medium text-blue-600 hover:underline cursor-pointer flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-blue-200 truncate max-w-[200px]"
+                        title={enlargedProperty.Ownershipproof || 'Verified Title Deed'}
                       >
-                        <FileText className="h-3 w-3" /> Verified Title Deed.pdf
+                        <FileText className="h-3 w-3 shrink-0" /> {enlargedProperty.Ownershipproof || 'Verified Title Deed'}
                       </span>
                     </p>
                   </div>
@@ -468,7 +480,7 @@ export default function MapComponent({ properties }: MapComponentProps) {
                     <li className="flex gap-4 p-4 rounded-xl border border-gray-100 bg-red-50/50">
                       <Activity className="h-6 w-6 text-red-500 shrink-0 mt-1" />
                       <div>
-                        <p className="font-bold text-gray-900 text-base">City Central Hospital</p>
+                        <p className="font-bold text-gray-900 text-base">{enlargedProperty.NearestHospital || 'City Central Hospital'}</p>
                         <p className="text-sm text-gray-600 mb-2">Distance: 1.2 km (5 mins)</p>
                         <div className="flex items-center gap-2 text-sm bg-white border border-red-100 rounded-lg px-3 py-1.5 w-max">
                           <Phone className="h-3.5 w-3.5 text-red-600" />
@@ -480,7 +492,7 @@ export default function MapComponent({ properties }: MapComponentProps) {
                     <li className="flex gap-4 p-4 rounded-xl border border-gray-100 bg-blue-50/50">
                       <Shield className="h-6 w-6 text-blue-500 shrink-0 mt-1" />
                       <div>
-                        <p className="font-bold text-gray-900 text-base">Local Police Station</p>
+                        <p className="font-bold text-gray-900 text-base">{enlargedProperty.NearestPoliceStation || 'Local Police Station'}</p>
                         <p className="text-sm text-gray-600 mb-2">Distance: 2.5 km (8 mins)</p>
                         <div className="flex items-center gap-2 text-sm bg-white border border-blue-100 rounded-lg px-3 py-1.5 w-max">
                           <Phone className="h-3.5 w-3.5 text-blue-600" />

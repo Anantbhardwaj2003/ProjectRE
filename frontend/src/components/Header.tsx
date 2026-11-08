@@ -186,13 +186,6 @@ export default function Header({ onPostPropertyClick }: HeaderProps = {}) {
           <span className="text-xl font-bold tracking-tight text-white">EstateSync</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-8">
-          <Link to="/" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">For Buyers</Link>
-          <a href="#" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">For Tenants</a>
-          <a href="#" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">For Owners</a>
-          <a href="#" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Projects</a>
-        </nav>
-
         <div className="flex items-center gap-3 sm:gap-4">
           {/* Notification Bell Dropdown (Powered by CompletedApplicationListingAuditor) */}
           <div className="relative" ref={bellRef}>

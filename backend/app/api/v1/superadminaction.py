@@ -206,7 +206,16 @@ class SuperAdminFinalAction(Resource):
                 c.name AS contact_name,
                 c.mobile_number AS contact_mobile,
                 pt.PropertyType AS property_type_name,
-                ot.OwnerTypeName AS ownership_type_name
+                ot.OwnerTypeName AS ownership_type_name,
+                pui.FrontExteriorAngle,
+                pui.LivingRoomMainHall,
+                pui.MasterBedroomAngle,
+                pui.KitchenDiningSpace,
+                pui.BalconyWashroomAngle,
+                pui.NearestMetroStation,
+                pui.NearestPoliceStation,
+                pui.NearestHospital,
+                pui.NearestShoppingMarket
             """
 
             query_str = f"""
@@ -217,6 +226,7 @@ class SuperAdminFinalAction(Resource):
                 LEFT JOIN public.IndividualPropertyDetails i ON s.indprop_id = i.{prop_pk}
                 LEFT JOIN public.PropertyTypeMaster pt ON i.Propertytype = pt.PropertyId
                 LEFT JOIN public.OwnerTypeMaster ot ON i.Ownershiptype = ot.OwnerTypeId
+                LEFT JOIN public.PropertyUploadImage pui ON (s.ImageId IS NOT NULL AND s.ImageId = pui.ImageId) OR (s.indprop_id IS NOT NULL AND s.indprop_id = pui.indprop_id)
             """
             conditions = []
             params = {}

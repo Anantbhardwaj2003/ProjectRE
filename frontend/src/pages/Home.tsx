@@ -4,9 +4,10 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import PostPropertyModal from '../components/PostPropertyModal';
 import { useAuth } from '../context/AuthContext';
-import { PROPERTIES } from '../data';
-import { Search, Target, ChevronDown, Mic, MapPin, X } from 'lucide-react';
+import type { Property } from '../types';
+import { Search, MapPin, X } from 'lucide-react';
 import MapComponent from '../components/MapComponent';
+import { getCachedGoogleCoordinates, geocodeWithGoogleMaps } from '../services/geocoding';
 
 const PLACEHOLDERS = [
   'Search "Farm house in Punjab below 1 cr"',
@@ -16,14 +17,172 @@ const PLACEHOLDERS = [
   'Search "New launch projects in Noida"'
 ];
 
+const getFullImageUrl = (path?: string, contactId?: number, indpropId?: number): string => {
+  if (!path) return 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  if (cleanPath.startsWith('/static/') || cleanPath.startsWith('/uploads/')) {
+    return `http://127.0.0.1:5000${cleanPath}`;
+  }
+  if (contactId && indpropId) {
+    return `http://127.0.0.1:5000/static/uploads/${contactId}/${indpropId}/${cleanPath.replace(/^\//, '')}`;
+  }
+  return `http://127.0.0.1:5000/static/uploads/${cleanPath.replace(/^\//, '')}`;
+};
+
+const mapAndDeduplicateWhitelisted = (items: any[]): Property[] => {
+  const map = new Map<string, Property>();
+
+  items.forEach((item, idx) => {
+    // Only accept properties whose AdminStatus is Whitelisted
+    const adminStatus = (item.AdminStatus || item.adminstatus || item.admin_status || '').trim();
+    if (adminStatus.toLowerCase() !== 'whitelisted') {
+      return;
+    }
+
+    const propId = item.indprop_id ?? item.ind_prop_id ?? item.IndividualPropertyId ?? item.individualpropertyid ?? item.id ?? item.ActionId ?? (idx + 1);
+    const address = (item.Propertyaddress || item.propertyaddress || item.property_address || item.address || '').trim() || 'Address on record';
+    const cleanAddr = address.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Canonical key to prevent duplicate listings on map
+    const dedupeKey = cleanAddr.length > 5 ? `addr_${cleanAddr}` : `prop_${propId}`;
+
+    if (!map.has(dedupeKey)) {
+      const rawPropName = (item.Propertyname || item.propertyname || item.property_name || '').trim();
+      const typeName = item.property_type_name || item.PropertyType || item.propertytype || 'Residential';
+      const propName = rawPropName || (typeName ? `${typeName} #${propId}` : `Property #${propId}`);
+      const frontPhoto = item.FrontExteriorAngle || item.frontexteriorangle || item.front_exterior_angle || '';
+      const photoUrl = getFullImageUrl(frontPhoto, item.contact_id, propId);
+
+      // Extract city from address
+      const parts = address.split(',').map((p: string) => p.trim());
+      const city = parts.length > 1 ? parts[parts.length - 1] : 'Delhi NCR';
+
+      const propObj: Property = {
+        id: `prop-${propId}`,
+        title: propName,
+        price: item.Price ? (typeof item.Price === 'number' ? `₹${item.Price.toLocaleString('en-IN')}` : item.Price) : 'Verified Listing',
+        priceRaw: typeof item.Price === 'number' ? item.Price : 0,
+        location: address,
+        city: city,
+        bhk: 3,
+        bathrooms: 2,
+        areaSqFt: 1500,
+        type: typeName,
+        status: item.Status || 'Accepted_By_PropertyManager',
+        AdminStatus: 'Whitelisted',
+        Reason: item.Reason || item.reason || 'Verified & Whitelisted by Super Administrator',
+        imageUrl: photoUrl,
+        isFeatured: true,
+        agent: item.contact_name || item.name || 'Verified Property Owner',
+        postedAt: 'Recently Live',
+        coordinates: getCachedGoogleCoordinates(address),
+        amenities: [
+          'Verified Title Deed',
+          '5-Angle Verified Photos',
+          item.NearestMetroStation ? `Metro: ${item.NearestMetroStation}` : 'Metro Station Nearby',
+          item.NearestHospital ? `Hospital: ${item.NearestHospital}` : 'Hospital Nearby',
+          item.NearestShoppingMarket ? `Market: ${item.NearestShoppingMarket}` : 'Market Nearby',
+          item.NearestPoliceStation ? `Police: ${item.NearestPoliceStation}` : 'Police Station Nearby'
+        ],
+        contact_id: item.contact_id,
+        indprop_id: propId,
+        Propertyname: propName,
+        Propertyaddress: address,
+        Ownershipproof: item.Ownershipproof || item.ownershipproof,
+        contact_name: item.contact_name,
+        contact_mobile: item.contact_mobile,
+        FrontExteriorAngle: frontPhoto,
+        LivingRoomMainHall: item.LivingRoomMainHall,
+        MasterBedroomAngle: item.MasterBedroomAngle,
+        KitchenDiningSpace: item.KitchenDiningSpace,
+        BalconyWashroomAngle: item.BalconyWashroomAngle,
+        NearestMetroStation: item.NearestMetroStation,
+        NearestPoliceStation: item.NearestPoliceStation,
+        NearestHospital: item.NearestHospital,
+        NearestShoppingMarket: item.NearestShoppingMarket,
+      };
+
+      map.set(dedupeKey, propObj);
+    }
+  });
+
+  return Array.from(map.values());
+};
+
 export default function Home() {
   const { user, role } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
-  const [nearbyResults, setNearbyResults] = useState<{prop: typeof PROPERTIES[0], dist: number}[] | null>(null);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [isLoadingProperties, setIsLoadingProperties] = useState<boolean>(true);
+  const [nearbyResults, setNearbyResults] = useState<{prop: Property, dist: number}[] | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+
+  // Geocodes addresses directly and exclusively using Google Maps Geocoding API
+  const geocodePropertiesWithGoogleMaps = async (items: Property[]) => {
+    let hasUpdates = false;
+    const updated = await Promise.all(
+      items.map(async (p) => {
+        if (!p.location) return p;
+        try {
+          const coords = await geocodeWithGoogleMaps(p.location);
+          if (coords && (!p.coordinates || p.coordinates[0] !== coords[0] || p.coordinates[1] !== coords[1])) {
+            hasUpdates = true;
+            return { ...p, coordinates: coords };
+          }
+        } catch (err) {
+          console.error(`[Google Maps] Error geocoding "${p.location}":`, err);
+        }
+        return p;
+      })
+    );
+
+    if (hasUpdates) {
+      setProperties(updated);
+    }
+  };
+
+  // Fetch only whitelisted properties via /api/v1/superadminfinalaction
+  const fetchWhitelistedProperties = async () => {
+    setIsLoadingProperties(true);
+    try {
+      let res = await fetch('/api/v1/superadminfinalaction?AdminStatus=Whitelisted');
+      if (!res.ok && (res.status === 404 || res.status === 502)) {
+        res = await fetch('http://127.0.0.1:5000/api/v1/superadminfinalaction?AdminStatus=Whitelisted');
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        const rawActions: any[] = data.final_actions || data.actions || [];
+        const whitelistedList = mapAndDeduplicateWhitelisted(rawActions);
+        setProperties(whitelistedList);
+        geocodePropertiesWithGoogleMaps(whitelistedList);
+      } else {
+        // Fallback: fetch without filter and filter client-side
+        let fbRes = await fetch('/api/v1/superadminfinalaction');
+        if (!fbRes.ok && (fbRes.status === 404 || fbRes.status === 502)) {
+          fbRes = await fetch('http://127.0.0.1:5000/api/v1/superadminfinalaction');
+        }
+        if (fbRes.ok) {
+          const data = await fbRes.json();
+          const rawActions: any[] = data.final_actions || data.actions || [];
+          const whitelistedList = mapAndDeduplicateWhitelisted(rawActions);
+          setProperties(whitelistedList);
+          geocodePropertiesWithGoogleMaps(whitelistedList);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch whitelisted properties from /api/v1/superadminfinalaction:', err);
+    } finally {
+      setIsLoadingProperties(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWhitelistedProperties();
+  }, []);
 
   const handleSearchNearMe = () => {
     if (!navigator.geolocation) {
@@ -44,7 +203,7 @@ export default function Home() {
         return R * c;
       };
 
-      const propertiesWithDistance = PROPERTIES
+      const propertiesWithDistance = properties
         .filter(prop => prop.coordinates)
         .map(prop => ({
           prop,
@@ -64,7 +223,6 @@ export default function Home() {
     };
 
     // If we are in the AI Studio preview iframe, geolocation is blocked by browser security.
-    // We will immediately use a mock location to demonstrate the functionality.
     if (window !== window.parent) {
       alert("Location access is restricted in this preview window by the browser. Using a simulated location (New Delhi) for demonstration.");
       findNearest(28.6139, 77.2090);
@@ -90,10 +248,11 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  const filteredProperties = PROPERTIES.filter(prop => 
-    prop.location.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    prop.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    prop.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProperties = properties.filter(prop => 
+    (prop.location || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (prop.city || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (prop.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (prop.type || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -119,14 +278,13 @@ export default function Home() {
             Find your next perfect space.
           </h1>
           <p className="mt-4 text-base sm:text-lg text-gray-200 drop-shadow-sm font-medium">
-            Showing {filteredProperties.length} results matching your criteria
+            {isLoadingProperties 
+              ? 'Loading live properties...' 
+              : `Showing ${filteredProperties.length} ${filteredProperties.length === 1 ? 'whitelisted property' : 'whitelisted properties'} live on portal`}
           </p>
           
-          <div 
-            className="mt-8 w-full max-w-6xl relative"
-            onMouseLeave={() => setIsDropdownOpen(false)}
-          >
-            <div className={`bg-white rounded-2xl shadow-2xl overflow-hidden transition-all ${isDropdownOpen ? 'rounded-b-none' : ''}`}>
+          <div className="mt-8 w-full max-w-6xl relative">
+            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden transition-all">
               {/* Tabs Header */}
               <div className="flex items-center justify-between border-b border-gray-100 overflow-x-auto hide-scrollbar px-2 sm:px-4">
                 <div className="flex items-center">
@@ -162,21 +320,11 @@ export default function Home() {
               </div>
 
               {/* Search Bar Row */}
-              <div className={`flex flex-col md:flex-row items-stretch md:items-center w-full p-2 gap-2 ${isDropdownOpen ? 'border-b border-gray-100' : ''}`}>
-                {/* Dropdown Toggle */}
-                <div 
-                  className="w-full md:w-auto flex items-center justify-between shrink-0 border-b md:border-b-0 md:border-r border-gray-200 px-4 py-3 md:py-2 cursor-pointer md:cursor-default hover:bg-gray-50 rounded-lg md:rounded-none md:hover:bg-transparent transition-colors"
-                  onMouseEnter={() => setIsDropdownOpen(true)}
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                >
-                  <span className="text-sm font-medium text-gray-700 whitespace-nowrap">All Residential</span>
-                  <ChevronDown className={`ml-3 h-4 w-4 text-gray-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                </div>
-
+              <div className="flex flex-col md:flex-row items-stretch md:items-center w-full p-2.5 gap-2">
                 {/* Search Input */}
                 <div className="flex-1 flex items-center w-full relative border-b md:border-b-0 border-gray-200 pb-2 md:pb-0">
                   <div className="pl-4">
-                    <Search className="h-5 w-5 text-gray-500" />
+                    <Search className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
                     type="text"
@@ -185,6 +333,16 @@ export default function Home() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 mr-2 rounded-full hover:bg-gray-100 transition-colors"
+                      title="Clear search"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -192,117 +350,63 @@ export default function Home() {
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={handleSearchNearMe}
-                      className="p-2.5 rounded-full bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors group relative" 
+                      className="p-2.5 rounded-full bg-gray-100 text-gray-700 hover:text-gray-900 hover:bg-gray-200 transition-colors group relative cursor-pointer" 
                       aria-label="Search near me"
+                      title="Search near me"
                     >
-                      <Target className="h-5 w-5" />
-                      <div className="hidden md:flex pointer-events-none absolute -top-10 right-0 z-20 items-center gap-1.5 whitespace-nowrap rounded bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 shadow-md">
-                        <Target className="h-3.5 w-3.5" />
+                      <MapPin className="h-5 w-5 text-gray-700 group-hover:text-black transition-colors" />
+                      <div className="hidden md:flex pointer-events-none absolute -top-10 right-0 z-20 items-center gap-1.5 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 shadow-md">
+                        <MapPin className="h-3.5 w-3.5 text-emerald-400" />
                         <span>Search near me</span>
                         <div className="absolute -bottom-1 right-3 h-2 w-2 rotate-45 bg-gray-900"></div>
                       </div>
                     </button>
-                    <button className="p-2.5 rounded-full bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors" aria-label="Voice search">
-                      <Mic className="h-5 w-5" />
-                    </button>
                   </div>
-                  <button className="ml-2 bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-lg font-semibold text-sm shadow-sm transition-colors flex-1 md:flex-none">
+                  <button className="ml-2 bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-xl font-semibold text-sm shadow-sm transition-colors flex-1 md:flex-none cursor-pointer">
                     Search
                   </button>
                 </div>
               </div>
             </div>
-
-            {/* Expanded Dropdown Panel */}
-            {isDropdownOpen && (
-              <div className="absolute top-full left-0 w-full bg-white rounded-b-2xl shadow-2xl px-6 py-4 animate-in slide-in-from-top-2 fade-in duration-200 text-left z-50 border-t border-gray-100">
-                <div className="flex justify-end mb-4">
-                  <button className="text-sm font-medium text-black hover:underline">Clear</button>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8 mb-6">
-                  {['Flat/Apartment', 'Residential Land', 'Serviced Apartments'].map((item) => (
-                    <label key={item} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 accent-black cursor-pointer" />
-                      <span className="text-sm text-gray-600">{item}</span>
-                    </label>
-                  ))}
-                  {['Builder Floor', '1 RK/ Studio Apartment', 'Other'].map((item) => (
-                    <label key={item} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 accent-black cursor-pointer" />
-                      <span className="text-sm text-gray-600">{item}</span>
-                    </label>
-                  ))}
-                  {['Independent House/Villa', 'Farm House'].map((item) => (
-                    <label key={item} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 accent-black cursor-pointer" />
-                      <span className="text-sm text-gray-600">{item}</span>
-                    </label>
-                  ))}
-                </div>
-
-                <div className="text-sm text-gray-600 mb-6 border-b border-gray-100 pb-6">
-                  Looking for commercial properties ? <a href="#" className="text-black font-medium hover:underline">Click here</a>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  {['Budget', 'Bedroom', 'Construction Status', 'Posted By'].map((filter) => (
-                    <button key={filter} className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                      {filter}
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {filteredProperties.length === 0 ? (
+        {isLoadingProperties ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white py-24 text-center mb-8 shadow-sm">
+            <div className="h-8 w-8 border-2 border-black border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p className="text-sm font-semibold text-gray-800">Loading Whitelisted Properties...</p>
+            <p className="text-xs text-gray-500 mt-1">Connecting to live executive property feed</p>
+          </div>
+        ) : filteredProperties.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 border-dashed bg-white py-24 text-center mb-8">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 mb-2">
               <MapPin className="h-8 w-8 text-gray-400" />
             </div>
-            <h3 className="mt-4 text-lg font-semibold text-gray-900">No properties found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Try adjusting your search criteria.
+            <h3 className="mt-2 text-lg font-semibold text-gray-900">No Whitelisted Properties Found</h3>
+            <p className="mt-1 text-sm text-gray-500 max-w-md">
+              {searchQuery 
+                ? `No properties matched "${searchQuery}". Try a different location or keyword.`
+                : 'There are currently no listings marked as Whitelisted. Properties verified and approved by the Super Administrator will automatically appear here on the map.'}
             </p>
-            <button 
-              onClick={() => setSearchQuery('')}
-              className="mt-6 rounded-md text-sm font-semibold text-black hover:text-gray-700"
-            >
-              Clear search
-            </button>
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="mt-6 rounded-md text-sm font-semibold text-black hover:text-gray-700 cursor-pointer"
+              >
+                Clear search
+              </button>
+            )}
           </div>
         ) : (
-          <div className="mb-8 grid grid-cols-1 lg:grid-cols-12 h-auto lg:h-[700px] rounded-2xl overflow-hidden shadow-lg border border-gray-200">
-            {/* Left side: Background Image + Title */}
-            <div className="lg:col-span-4 relative flex flex-col justify-end p-6 lg:p-8 text-white min-h-[220px] lg:min-h-[300px]">
-              <div 
-                className="absolute inset-0 bg-cover bg-center" 
-                style={{ backgroundImage: "url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80')" }} 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/40 to-transparent" />
-              <div className="relative z-10">
-                <div className="flex h-10 w-10 lg:h-12 lg:w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm mb-3 lg:mb-4">
-                  <MapPin className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
-                </div>
-                <h2 className="text-2xl lg:text-3xl font-bold tracking-tight mb-1 lg:mb-2">Property Plotting</h2>
-                <p className="text-gray-200 font-medium text-xs lg:text-sm">Explore premium locations interactively.</p>
-              </div>
-            </div>
-            
-            {/* Right side: Map */}
-            <div className="lg:col-span-8 w-full h-[450px] lg:h-full relative z-0">
-              <MapComponent properties={filteredProperties.slice(0, 5)} />
-            </div>
+          <div className="mb-8 w-full h-[500px] lg:h-[650px] rounded-2xl overflow-hidden shadow-lg border border-gray-200 relative z-0">
+            <MapComponent properties={filteredProperties} />
           </div>
         )}
       </main>
 
-      {/* Beautiful Nearest Properties Popup */}
+      {/* Nearest Properties Popup */}
       {nearbyResults && nearbyResults.length > 0 && (
         <div className="fixed inset-0 z-[3000] bg-gray-900/60 backdrop-blur-sm p-4 flex items-center justify-center">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -313,7 +417,7 @@ export default function Home() {
               </h3>
               <button 
                 onClick={() => setNearbyResults(null)} 
-                className="p-1.5 hover:bg-gray-200 rounded-full transition-colors group"
+                className="p-1.5 hover:bg-gray-200 rounded-full transition-colors group cursor-pointer"
                 aria-label="Close"
               >
                 <X className="h-5 w-5 text-gray-500 group-hover:text-gray-700" />

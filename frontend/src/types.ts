@@ -1,19 +1,41 @@
 export interface Property {
-  id: string;
+  id: string | number;
   title: string;
-  price: string;
-  priceRaw: number;
+  price?: string;
+  priceRaw?: number;
   location: string;
-  city: string;
-  bhk: number;
-  bathrooms: number;
-  areaSqFt: number;
-  type: 'Apartment' | 'Villa' | 'Independent House';
-  status: 'Ready to move' | 'Under Construction';
+  city?: string;
+  bhk?: number;
+  bathrooms?: number;
+  areaSqFt?: number;
+  type?: string;
+  status?: string;
+  AdminStatus?: string;
+  Reason?: string;
   imageUrl: string;
-  isFeatured: boolean;
-  agent: string;
-  postedAt: string;
-  coordinates?: [number, number]; // [latitude, longitude]
+  isFeatured?: boolean;
+  agent?: string;
+  postedAt?: string;
+  coordinates?: [number, number];
   amenities?: string[];
+  // Database fields
+  contact_id?: number;
+  indprop_id?: number;
+  IndividualPropertyId?: number;
+  Propertyname?: string;
+  Propertyaddress?: string;
+  Ownershipproof?: string;
+  contact_name?: string;
+  contact_mobile?: string;
+  property_type_name?: string;
+  ownership_type_name?: string;
+  FrontExteriorAngle?: string;
+  LivingRoomMainHall?: string;
+  MasterBedroomAngle?: string;
+  KitchenDiningSpace?: string;
+  BalconyWashroomAngle?: string;
+  NearestMetroStation?: string;
+  NearestPoliceStation?: string;
+  NearestHospital?: string;
+  NearestShoppingMarket?: string;
 }

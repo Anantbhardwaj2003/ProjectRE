@@ -102,6 +102,15 @@ EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tie
 
 ---
 
+### Screenshots
+<img width="1918" height="912" alt="Screenshot 2026-11-07 123345" src="https://github.com/user-attachments/assets/001147b4-865b-4947-95e7-533d4b4cd67f" />
+<img width="1918" height="911" alt="Screenshot 2026-11-08 095020" src="https://github.com/user-attachments/assets/6759fec2-150e-4d20-b11c-c942b7e3e910" />
+<img width="1917" height="911" alt="Screenshot 2026-11-07 154257" src="https://github.com/user-attachments/assets/45f1aae7-e3f2-45a9-9f7f-170f297ef5db" />
+<img width="1918" height="917" alt="Screenshot 2026-11-07 163908" src="https://github.com/user-attachments/assets/e282f0f8-2e00-493a-ac10-89398b8b8058" />
+<img width="1918" height="902" alt="Screenshot 2026-11-08 103225" src="https://github.com/user-attachments/assets/6147ce34-a5e6-4b86-ac34-d3bc8aaf7fe3" />
+
+---
+
 ### 📄 Standardized 10-Item Pagination
 Pagination with a clean 10-item page size has been integrated across all three administrative dashboards:
 - **`SuperAdministrator.tsx`**: 10 properties per page with tab-based category counts.

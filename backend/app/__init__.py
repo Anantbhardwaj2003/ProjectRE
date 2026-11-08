@@ -13,7 +13,7 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
     
     app.config['SESSION_COOKIE_HTTPONLY'] = True 
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'

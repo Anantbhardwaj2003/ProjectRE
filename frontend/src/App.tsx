@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import Login from './auth/Login';
 import ListingDashboard from './pages/LisitngDashboard';
 import PropertyManager from './pages/PropertyManager';
+import SuperAdministrator from './pages/SuperAdministrator';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import { AuthProvider } from './context/AuthContext';
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/listingdashboard" element={<ListingDashboard />} />
           <Route path="/dashboard" element={<ListingDashboard />} />
           <Route path="/propertymanager" element={<PropertyManager />} />
+          <Route path="/superadministrator" element={<SuperAdministrator />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>

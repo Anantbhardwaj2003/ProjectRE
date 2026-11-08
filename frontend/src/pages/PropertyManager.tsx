@@ -7,7 +7,8 @@ import {
   AlertCircle, Filter, RefreshCw, Phone, User, 
   MapPin, FileText, Search, X, Briefcase, 
   Layers, Check, Camera, TrainFront, Shield, HeartPulse, ShoppingBag, ExternalLink,
-  Eye
+  Eye, Copy,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from 'lucide-react';
 
 export interface PropertyListing {
@@ -90,6 +91,15 @@ export default function PropertyManager() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Pagination state (10 items per page)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10;
+
+  // Reset pagination to page 1 whenever active tab or search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
+
   // Row action and async state
   const [rowActions, setRowActions] = useState<Record<string | number, string>>({});
   const [updatingRowId, setUpdatingRowId] = useState<string | number | null>(null);
@@ -97,6 +107,14 @@ export default function PropertyManager() {
 
   // Comprehensive Property & Media Details Modal
   const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null);
+  const [copiedDeed, setCopiedDeed] = useState(false);
+
+  const handleCopyDeed = (textToCopy: string) => {
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedDeed(true);
+    setTimeout(() => setCopiedDeed(false), 2000);
+  };
   
   // Lightbox for full-resolution photo preview
   const [lightboxImage, setLightboxImage] = useState<{ url: string; label: string } | null>(null);
@@ -453,6 +471,30 @@ export default function PropertyManager() {
     });
   }, [currentTabListings, searchQuery]);
 
+  // Pagination calculations (10 items per page)
+  const totalItems = filteredListings.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const startIndex = (validCurrentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedListings = useMemo(() => {
+    return filteredListings.slice(startIndex, endIndex);
+  }, [filteredListings, startIndex, endIndex]);
+
+  const getPageNumbers = (current: number, total: number) => {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 4) {
+      return [1, 2, 3, 4, 5, '...', total];
+    }
+    if (current >= total - 3) {
+      return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    }
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
       
@@ -786,22 +828,23 @@ export default function PropertyManager() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-gray-200/80">
-              <table className="min-w-full divide-y divide-gray-200 text-xs text-left">
-                <thead className="bg-gray-50/90 text-gray-600 font-bold uppercase tracking-wider text-[10px]">
-                  <tr>
-                    <th scope="col" className="px-4 py-3">Property</th>
-                    <th scope="col" className="px-4 py-3">Property Type</th>
-                    <th scope="col" className="px-4 py-3">Owner / Contact</th>
-                    <th scope="col" className="px-4 py-3">Ownership</th>
-                    <th scope="col" className="px-4 py-3">Address</th>
-                    <th scope="col" className="px-4 py-3 text-center">Media / Deed</th>
-                    <th scope="col" className="px-4 py-3 text-center">Status</th>
-                    <th scope="col" className="px-4 py-3 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-100">
-                  {filteredListings.map((item, index) => {
+            <>
+              <div className="overflow-x-auto rounded-xl border border-gray-200/80">
+                <table className="min-w-full divide-y divide-gray-200 text-xs text-left">
+                  <thead className="bg-gray-50/90 text-gray-600 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th scope="col" className="px-4 py-3">Property</th>
+                      <th scope="col" className="px-4 py-3">Property Type</th>
+                      <th scope="col" className="px-4 py-3">Owner / Contact</th>
+                      <th scope="col" className="px-4 py-3">Ownership</th>
+                      <th scope="col" className="px-4 py-3">Address</th>
+                      <th scope="col" className="px-4 py-3 text-center">Media / Deed</th>
+                      <th scope="col" className="px-4 py-3 text-center">Status</th>
+                      <th scope="col" className="px-4 py-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {paginatedListings.map((item, index) => {
                     const rowKey = item.ImageId || item.indprop_id || item.id || item.IndividualPropertyId || item.property_id || `${item.contact_id || 'c'}_${item.Propertyname || item.propertyname || ''}_${item.Propertyaddress || item.propertyaddress || ''}_${index}`;
                     const propName = item.Propertyname || item.propertyname || item.property_name || 'Untitled Property';
                     const propType = item.property_type_name || (item.Propertytype || item.propertytype ? `Type #${item.Propertytype || item.propertytype}` : 'General');
@@ -972,7 +1015,99 @@ export default function PropertyManager() {
                 </tbody>
               </table>
             </div>
-          )}
+
+            {/* Pagination Toolbar (Page size: 10) */}
+            {totalItems > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-2 border-t border-gray-100 text-xs">
+                {/* Entry range text */}
+                <div className="text-gray-500 font-medium text-center sm:text-left">
+                  Showing <span className="font-bold text-gray-900">{startIndex + 1}</span> to{' '}
+                  <span className="font-bold text-gray-900">{endIndex}</span> of{' '}
+                  <span className="font-bold text-gray-900">{totalItems}</span> properties
+                  <span className="ml-1 text-gray-400">({itemsPerPage} per page)</span>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                  {/* First Page */}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={validCurrentPage === 1}
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="First Page"
+                  >
+                    <ChevronsLeft className="h-3.5 w-3.5" />
+                  </button>
+
+                  {/* Previous Page */}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={validCurrentPage === 1}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer font-medium"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Prev</span>
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers(validCurrentPage, totalPages).map((p, idx) => {
+                      if (p === '...') {
+                        return (
+                          <span key={`ellipsis-${idx}`} className="px-2 py-1 text-gray-400 font-bold select-none">
+                            ...
+                          </span>
+                        );
+                      }
+                      const pageNum = Number(p);
+                      const isActive = pageNum === validCurrentPage;
+                      return (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`min-w-8 h-8 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                              : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Next Page */}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={validCurrentPage === totalPages}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer font-medium"
+                    title="Next Page"
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+
+                  {/* Last Page */}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={validCurrentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="Last Page"
+                  >
+                    <ChevronsRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         </div>
 
@@ -1105,6 +1240,17 @@ export default function PropertyManager() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {/* Copy Reference String */}
+                      <button
+                        type="button"
+                        onClick={() => handleCopyDeed(selectedProperty.Ownershipproof || '')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-xs font-medium transition-colors cursor-pointer"
+                        title="Copy Deed Reference to clipboard"
+                      >
+                        <Copy className="h-3.5 w-3.5 text-gray-400" />
+                        <span>{copiedDeed ? 'Copied!' : 'Copy Ref'}</span>
+                      </button>
+
                       {/* Open File if it is a document file */}
                       {isProofFile(selectedProperty.Ownershipproof) && (
                         <a

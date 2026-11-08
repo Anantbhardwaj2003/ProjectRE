@@ -177,10 +177,22 @@ export default function Admin() {
           // Update authentication context
           login(adminName, adminInfo?.admin_id || null, null, 'user');
 
-          // Role-based routing: Property Manager -> /propertymanager, Listing Auditor -> /listingdashboard
+          // Role-based routing: Superadministrator -> /superadministrator, Property Manager -> /propertymanager, Listing Auditor -> /listingdashboard
           const normalizedRole = roleTypeName.toLowerCase().replace(/[\s_-]+/g, '');
-          const isPropertyManager = normalizedRole.includes('propertymanager') || (normalizedRole.includes('property') && normalizedRole.includes('manager'));
-          const destination = isPropertyManager ? '/propertymanager' : '/listingdashboard';
+          const isSuperAdmin = 
+            normalizedRole.includes('superadministrator') || 
+            normalizedRole.includes('superadmin') || 
+            (normalizedRole.includes('super') && normalizedRole.includes('admin'));
+          const isPropertyManager = 
+            normalizedRole.includes('propertymanager') || 
+            (normalizedRole.includes('property') && normalizedRole.includes('manager'));
+
+          let destination = '/listingdashboard';
+          if (isSuperAdmin) {
+            destination = '/superadministrator';
+          } else if (isPropertyManager) {
+            destination = '/propertymanager';
+          }
 
           setTimeout(() => {
             navigate(destination);

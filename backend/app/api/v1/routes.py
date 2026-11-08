@@ -2,6 +2,7 @@ from flask_restful import Api
 from flask import Blueprint
 import app.api.v1.real_estate as real_estate
 import app.api.v1.propertyimageupload as propertyimageupload
+import app.api.v1.superadminaction as superadminaction
 
 v1_bp = Blueprint('apis', __name__)
 api_v1 = Api(v1_bp)
@@ -19,3 +20,4 @@ api_v1.add_resource(real_estate.ListingAuditorStatusApproved, f'{url}/listingaud
 api_v1.add_resource(real_estate.AuthSession, f'{url}/auth/session')
 api_v1.add_resource(propertyimageupload.PropertyImageUpload, f'{url}/propertyimageupload')
 api_v1.add_resource(propertyimageupload.PropertyManagerCompleted, f'{url}/propertymanagercompleted')
+api_v1.add_resource(superadminaction.SuperAdminFinalAction, f'{url}/superadminfinalaction')

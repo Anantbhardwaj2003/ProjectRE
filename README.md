@@ -1,6 +1,6 @@
 # EstateSync — Real Estate, Listing Auditor & Superadmin Platform
 
-EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tier listing audit, and property portfolio management platform. It bridges property seekers, owners, listing auditors, property managers, and executive super administrators through end-to-end listing lifecycles: public property discovery, geolocation-based search, multi-step property submissions, a 3-tier review and inspection pipeline, and an executive Superadmin oversight engine with dedicated audit trails and action logging.
+EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tier listing audit, and property portfolio management platform. It bridges property seekers, owners, listing auditors, property managers, and executive super administrators through end-to-end listing lifecycles: public property discovery, geolocation-based search, OpenStreetMap interactive plotting powered by Google Maps Geocoding, multi-step property submissions, a 3-tier review and inspection pipeline, and an executive Superadmin oversight engine with dedicated audit trails and action logging.
 
 ---
 
@@ -8,6 +8,7 @@ EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tie
 
 - [Key Features](#-key-features)
   - [Public & Owner Portal](#-public--owner-portal)
+  - [OpenStreetMap Property Plotting & Google Maps Geocoding](#-openstreetmap-property-plotting--google-maps-geocoding)
   - [Listing Auditor Console (`/listingdashboard`)](#-listing-auditor-console-listingdashboard)
   - [Property Manager Dashboard (`/propertymanager`)](#-property-manager-dashboard-propertymanager)
   - [Super Administrator Control Center (`/superadministrator`)](#-super-administrator-control-center-superadministrator)
@@ -31,10 +32,10 @@ EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tie
 
 ### 🏡 Public & Owner Portal
 - **Property Discovery**: Smart search with dynamic query suggestions and category filtering (Rent, Buy, Commercial, Plots, Luxury Villas).
-- **Geolocation "Search Near Me"**: Calculates geographical distances using the Haversine formula and pinpoints nearby properties on interactive maps (Leaflet / React-Leaflet).
+- **Streamlined Search Bar**: Modern search interface with "Search Near Me" powered by a sleek location icon and Haversine distance calculations.
 - **Multi-Step Property Submission**:
   - **Step 1**: Owner contact validation (`name`, `mobile_number`).
-  - **Step 2**: Property specifications (Property Type, Ownership Type, Address, Ownership Deed Proof Reference/Attachment).
+  - **Step 2**: Property specifications (Property Name, Property Type, Ownership Type, Address, Ownership Deed Proof Reference/Attachment).
   - **Step 3**: Instant submission into the administrative review queue with initial status `Submitted`.
 - **Accepted Listings Bell Notification**:
   - Real-time popover in the top navigation bar fetching approved applications via `/api/v1/completedapplicationlistingauditor`.
@@ -49,6 +50,21 @@ EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tie
   - **File Validation**: Strict client- and server-side validation enforcing a **500 KB limit** per image and verified formats (`.png`, `.jpg`, `.jpeg`, `.webp`).
   - **Surrounding Infrastructure & Landmarks**: Visual landmark inputs (Metro Station, Police Station, Hospital, Shopping Market) with automated sanitation (special character stripping, 100 character maximum).
   - Automatically transitions property status to **`UploadImagesByUser`**.
+
+---
+
+### 🗺️ OpenStreetMap Property Plotting & Google Maps Geocoding
+- **OpenStreetMap Tile Engine**: Official OpenStreetMap cartography (`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`) rendered via Leaflet and React-Leaflet with full-width responsive layout.
+- **Live Whitelisted Listing Feed**: Dynamic real-time integration querying `/api/v1/superadminfinalaction?AdminStatus=Whitelisted`, plotting only executive-approved, live whitelisted properties.
+- **Google Maps Geocoding Engine**:
+  - Converts physical property text addresses (e.g., *"House No. 18 Sector-96 Faridabad Haryana"*) into exact GPS coordinates (`lat`, `lng`).
+  - **Backend Proxy (`/api/v1/geocode`)**: Handles Google Maps API queries on the server side using `GOOGLE_MAPS_PLATFORM_KEY`, completely bypassing browser CORS limitations.
+  - **Multi-Variant Address Parsing**: If a specific house or flat number is unindexed in map databases, the parser cleanly resolves the sector and locality to guarantee pinpoint placement.
+- **Property Name Pin Badges**:
+  - Circular image pin markers featuring front exterior photos and teardrop anchors.
+  - Floating white badge above each pin displays the actual **Property Name** (e.g. *"House No. 18"*, *"Flat No. 103"*, *"Sunrise Villa"*) with native hover tooltip and text truncation.
+- **Interactive Popup Cards**: Clicking any marker reveals a preview card with photo, property name, full address, verification status, and property type tag, expandable to a full detail modal.
+- **Persistent Local Caching**: Resolved coordinates are cached in `localStorage` under `estatesync_google_geocache_v1`, ensuring zero redundant API calls and instantaneous page loads.
 
 ---
 
@@ -151,9 +167,9 @@ stateDiagram-v2
     Tier2 --> Superadmin: Executive Decision / Override
     Tier3 --> Superadmin: Executive Decision / Override
 
-    state "Platform Live Portfolio" as Live {
+    state "Platform Live Portfolio & OpenStreetMap" as Live {
         Accepted_By_PropertyManager: 100% Operational & Live for Buyers / Tenants
-        Whitelisted --> Accepted_By_PropertyManager: Live Active
+        Whitelisted --> Accepted_By_PropertyManager: Live Active & Plotted on Map
     }
 
     state "Declined Archives" as Archive {
@@ -171,10 +187,14 @@ stateDiagram-v2
 graph TD
     Client["Frontend (React 19 + TypeScript + Vite)"]
     API["Backend (Python / Flask-RESTful API)"]
+    GoogleMaps["Google Maps Geocoding API"]
+    OSM["OpenStreetMap Tiles (leaflet)"]
     Uploads["Static Uploads (/static/uploads/contact_id/indprop_id/)"]
     DB[("PostgreSQL Database (realestate)")]
 
     Client -- "REST JSON & Multipart FormData" --> API
+    API -- "Address Geocoding Queries" --> GoogleMaps
+    Client -- "Fetch Map Tiles" --> OSM
     API -- "Store 5 Angle Photos & Deeds" --> Uploads
     API -- "SQLAlchemy ORM & Raw SQL" --> DB
 ```
@@ -184,13 +204,15 @@ graph TD
 - **Build Tool**: [Vite 8](https://vitejs.dev/)
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
 - **Icons**: [Lucide React](https://lucide.dev/)
-- **Maps & Location**: [Leaflet](https://leafletjs.com/) & [React-Leaflet](https://react-leaflet.js.org/)
+- **Maps & Location**: [Leaflet](https://leafletjs.com/) & [React-Leaflet](https://react-leaflet.js.org/) + OpenStreetMap
+- **Geocoding Client**: Custom Google Maps Geocoding service with local storage caching
 - **Routing**: [React Router v7](https://reactrouter.com/)
 
 ### Backend
 - **Framework**: [Flask](https://flask.palletsprojects.com/) + [Flask-RESTful](https://flask-restful.readthedocs.io/)
 - **ORM / Database Tooling**: [SQLAlchemy](https://www.sqlalchemy.org/) / [Flask-SQLAlchemy](https://flask-sqlalchemy.palletsprojects.com/)
 - **Database Driver**: `psycopg2-binary`
+- **Geocoding Service**: Python standard `urllib.request` integration with Google Maps Platform API
 - **File Uploads & Security**: `werkzeug.utils.secure_filename`, `uuid`
 - **Environment**: `python-dotenv`
 
@@ -215,10 +237,11 @@ ProjectRE/
 │   │           ├── routes.py               # Blueprint & API endpoint registration
 │   │           ├── real_estate.py          # Auditor, auth & property submission resources
 │   │           ├── propertyimageupload.py  # 5-angle photo upload & PropertyManagerCompleted
-│   │           └── superadminaction.py     # SuperAdminFinalAction table & executive actions
+│   │           ├── superadminaction.py     # SuperAdminFinalAction table & executive actions
+│   │           └── geocoding.py            # Google Maps Geocoding API server-side proxy
 │   ├── rendering_routes.py                 # Static SSR routes
 │   ├── run.py                              # Backend entry point (Port 5000)
-│   └── app.env                             # Database connection & secret key
+│   └── app.env                             # Database connection, secret key & Google Maps Key
 │
 ├── frontend/
 │   ├── public/                             # Static assets
@@ -228,13 +251,15 @@ ProjectRE/
 │   │   ├── components/
 │   │   │   ├── Header.tsx                  # Navigation header with Accepted Listings Bell
 │   │   │   ├── Footer.tsx                  # Global footer
-│   │   │   ├── MapComponent.tsx            # Leaflet interactive map
+│   │   │   ├── MapComponent.tsx            # Leaflet + OpenStreetMap interactive plotting
 │   │   │   ├── PostPropertyModal.tsx       # Initial property submission modal
 │   │   │   └── UploadPropertyImagesModal.tsx # 5-angle photo & landmark upload modal
 │   │   ├── context/
 │   │   │   └── AuthContext.tsx             # Global authentication & session provider
+│   │   ├── services/
+│   │   │   └── geocoding.ts                # Google Maps Geocoding service & local cache
 │   │   ├── pages/
-│   │   │   ├── Home.tsx                    # Homepage with search & nearby properties
+│   │   │   ├── Home.tsx                    # Homepage with search, near me & live OSM map
 │   │   │   ├── Admin.tsx                   # Role-based admin login (routes to role console)
 │   │   │   ├── LisitngDashboard.tsx        # Listing Auditor Dashboard (10-item pagination)
 │   │   │   ├── PropertyManager.tsx         # Property Manager Dashboard (10-item pagination)
@@ -242,10 +267,12 @@ ProjectRE/
 │   │   │   ├── Dashboard.tsx               # Dashboard route alias
 │   │   │   └── Profile.tsx                 # User profile view
 │   │   ├── App.tsx                         # Client routes & layout definition
+│   │   ├── types.ts                        # Unified TypeScript interfaces (Property, etc.)
 │   │   └── main.tsx                        # React application entry point
 │   ├── package.json                        # Frontend dependencies & scripts
 │   ├── vite.config.ts                      # Vite configuration & proxy routes (/api, /static)
-│   └── tsconfig.json                       # TypeScript compiler settings
+│   ├── tsconfig.json                       # TypeScript compiler settings
+│   └── .env                                # Google Maps Platform API Key
 │
 └── README.md                               # Project documentation
 ```
@@ -330,6 +357,7 @@ erDiagram
         string Reason
     }
 ```
+
 ---
 
 ## 🔌 API Reference (`/api/v1`)
@@ -349,8 +377,9 @@ erDiagram
 | `POST` | `/api/v1/propertyimageupload` | Upload 5 angle photos (500 KB limit) and landmarks; updates status to `UploadImagesByUser`. |
 | `GET` | `/api/v1/propertymanagercompleted` | Retrieve completed listings (`Accepted_By_PropertyManager` and `Rejected_By_PropertyManager`). |
 | `POST` | `/api/v1/propertymanagercompleted` | Transition status from `UploadImagesByUser` to `Accepted_By_PropertyManager` or `Rejected_By_PropertyManager`. |
-| `GET` | `/api/v1/superadminfinalaction` | Retrieve Superadmin executive decisions, reasons, and status overrides across listings. |
+| `GET` | `/api/v1/superadminfinalaction` | Retrieve Superadmin executive decisions, reasons, and status overrides across listings. Supports `?AdminStatus=Whitelisted`. |
 | `POST` | `/api/v1/superadminfinalaction` | Record a Superadmin executive decision (`Whitelisted`, `AdminProcess`, `Rejected`) with custom reason in `SuperAdminFinalAction`. |
+| `GET` | `/api/v1/geocode` | Geocode an address string using Google Maps Geocoding API (`?address=...`), returning exact `lat` and `lng`. |
 
 ---
 
@@ -372,6 +401,7 @@ Served via Flask route `/static/uploads/<path:filename>` and proxied transparent
 - **Node.js**: v18.0 or higher
 - **Python**: v3.10 or higher
 - **PostgreSQL**: v14.0 or higher
+- **Google Maps API Key**: Geocoding API enabled on Google Cloud Platform
 
 ---
 
@@ -398,11 +428,12 @@ Served via Flask route `/static/uploads/<path:filename>` and proxied transparent
    pip install flask flask-restful flask-sqlalchemy psycopg2-binary python-dotenv sqlalchemy werkzeug
    ```
 
-4. **Configure Database Connection**:
-   Update `backend/app.env` with your PostgreSQL credentials:
+4. **Configure Database Connection & Google Maps Key**:
+   Update `backend/app.env` with your PostgreSQL credentials and Google Maps API key:
    ```env
    SQLALCHEMY_DATABASE_URI = "postgresql://postgres:your_password@localhost:5432/realestate"
    SECRET_KEY = "your_secret_key"
+   GOOGLE_MAPS_PLATFORM_KEY = your_google_maps_api_key_here
    ```
 
 5. **Start the Flask server**:
@@ -425,7 +456,14 @@ Served via Flask route `/static/uploads/<path:filename>` and proxied transparent
    npm install
    ```
 
-3. **Start the development server**:
+3. **Configure Environment Variables**:
+   Update `frontend/.env` with your Google Maps API key:
+   ```env
+   GOOGLE_MAPS_PLATFORM_KEY=your_google_maps_api_key_here
+   VITE_GOOGLE_MAPS_PLATFORM_KEY=your_google_maps_api_key_here
+   ```
+
+4. **Start the development server**:
    ```bash
    npm run dev
    ```
@@ -442,6 +480,17 @@ SQLALCHEMY_DATABASE_URI = "postgresql://postgres:admin@localhost:5433/realestate
 
 # Secret key for sessions and cookie signing
 SECRET_KEY = "real_estate"
+
+# Google Maps Platform Geocoding API Key
+GOOGLE_MAPS_PLATFORM_KEY = AIzaSy...
+GOOGLE_MAPS_API_KEY = AIzaSy...
+```
+
+### Frontend (`frontend/.env`)
+```env
+# Google Maps Platform Geocoding API Key
+GOOGLE_MAPS_PLATFORM_KEY = AIzaSy...
+VITE_GOOGLE_MAPS_PLATFORM_KEY = AIzaSy...
 ```
 
 ### Frontend Proxy (`frontend/vite.config.ts`)

@@ -51,7 +51,18 @@ const mapAndDeduplicateWhitelisted = (items: any[]): Property[] => {
       const rawPropName = (item.Propertyname || item.propertyname || item.property_name || '').trim();
       const typeName = item.property_type_name || item.PropertyType || item.propertytype || 'Residential';
       const propName = rawPropName || (typeName ? `${typeName} #${propId}` : `Property #${propId}`);
-      const frontPhoto = item.FrontExteriorAngle || item.frontexteriorangle || item.front_exterior_angle || '';
+
+      const frontPhoto = (item.FrontExteriorAngle || item.frontexteriorangle || item.front_exterior_angle || '').trim();
+      const livingPhoto = (item.LivingRoomMainHall || item.livingroommainhall || item.living_room_main_hall || '').trim();
+      const bedroomPhoto = (item.MasterBedroomAngle || item.masterbedroomangle || item.master_bedroom_angle || '').trim();
+      const kitchenPhoto = (item.KitchenDiningSpace || item.kitchendiningspace || item.kitchen_dining_space || '').trim();
+      const balconyPhoto = (item.BalconyWashroomAngle || item.balconywashroomangle || item.balcony_washroom_angle || '').trim();
+
+      const metro = (item.NearestMetroStation || item.nearestmetrostation || item.nearest_metro_station || '').trim();
+      const hospital = (item.NearestHospital || item.nearesthospital || item.nearest_hospital || '').trim();
+      const market = (item.NearestShoppingMarket || item.nearestshoppingmarket || item.nearest_shopping_market || '').trim();
+      const police = (item.NearestPoliceStation || item.nearestpolicestation || item.nearest_police_station || '').trim();
+
       const photoUrl = getFullImageUrl(frontPhoto, item.contact_id, propId);
 
       // Extract city from address
@@ -65,9 +76,9 @@ const mapAndDeduplicateWhitelisted = (items: any[]): Property[] => {
         priceRaw: typeof item.Price === 'number' ? item.Price : 0,
         location: address,
         city: city,
-        bhk: 3,
-        bathrooms: 2,
-        areaSqFt: 1500,
+        bhk: item.bhk || item.BHK || undefined,
+        bathrooms: item.bathrooms || item.baths || undefined,
+        areaSqFt: item.areaSqFt || item.area_sqft || undefined,
         type: typeName,
         status: item.Status || 'Accepted_By_PropertyManager',
         AdminStatus: 'Whitelisted',
@@ -80,10 +91,10 @@ const mapAndDeduplicateWhitelisted = (items: any[]): Property[] => {
         amenities: [
           'Verified Title Deed',
           '5-Angle Verified Photos',
-          item.NearestMetroStation ? `Metro: ${item.NearestMetroStation}` : 'Metro Station Nearby',
-          item.NearestHospital ? `Hospital: ${item.NearestHospital}` : 'Hospital Nearby',
-          item.NearestShoppingMarket ? `Market: ${item.NearestShoppingMarket}` : 'Market Nearby',
-          item.NearestPoliceStation ? `Police: ${item.NearestPoliceStation}` : 'Police Station Nearby'
+          metro ? `Metro: ${metro}` : 'Metro Station Nearby',
+          hospital ? `Hospital: ${hospital}` : 'Hospital Nearby',
+          market ? `Market: ${market}` : 'Market Nearby',
+          police ? `Police: ${police}` : 'Police Station Nearby'
         ],
         contact_id: item.contact_id,
         indprop_id: propId,
@@ -92,15 +103,27 @@ const mapAndDeduplicateWhitelisted = (items: any[]): Property[] => {
         Ownershipproof: item.Ownershipproof || item.ownershipproof,
         contact_name: item.contact_name,
         contact_mobile: item.contact_mobile,
+        property_type_name: typeName,
+        ownership_type_name: item.ownership_type_name || item.OwnershiptypeName || item.ownershiptype_name || 'Freehold',
         FrontExteriorAngle: frontPhoto,
-        LivingRoomMainHall: item.LivingRoomMainHall,
-        MasterBedroomAngle: item.MasterBedroomAngle,
-        KitchenDiningSpace: item.KitchenDiningSpace,
-        BalconyWashroomAngle: item.BalconyWashroomAngle,
-        NearestMetroStation: item.NearestMetroStation,
-        NearestPoliceStation: item.NearestPoliceStation,
-        NearestHospital: item.NearestHospital,
-        NearestShoppingMarket: item.NearestShoppingMarket,
+        LivingRoomMainHall: livingPhoto,
+        MasterBedroomAngle: bedroomPhoto,
+        KitchenDiningSpace: kitchenPhoto,
+        BalconyWashroomAngle: balconyPhoto,
+        NearestMetroStation: metro,
+        NearestPoliceStation: police,
+        NearestHospital: hospital,
+        NearestShoppingMarket: market,
+        frontexteriorangle: frontPhoto,
+        livingroommainhall: livingPhoto,
+        masterbedroomangle: bedroomPhoto,
+        kitchendiningspace: kitchenPhoto,
+        balconywashroomangle: balconyPhoto,
+        nearestmetrostation: metro,
+        nearestpolicestation: police,
+        nearesthospital: hospital,
+        nearestshoppingmarket: market,
+        ownershipproof: item.Ownershipproof || item.ownershipproof,
       };
 
       map.set(dedupeKey, propObj);

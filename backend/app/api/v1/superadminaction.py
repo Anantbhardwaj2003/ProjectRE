@@ -156,6 +156,23 @@ def ensure_superadmin_action_table():
     except Exception:
         db.session.rollback()
 
+    # 6. Auto-link ImageId in public.SuperAdminFinalAction from PropertyUploadImage
+    try:
+        db.session.execute(text("""
+            UPDATE public.SuperAdminFinalAction s
+            SET ImageId = (
+                SELECT pui.ImageId FROM public.PropertyUploadImage pui 
+                WHERE (pui.indprop_id IS NOT NULL AND pui.indprop_id = s.indprop_id)
+                   OR (pui.contact_id IS NOT NULL AND pui.contact_id = s.contact_id)
+                ORDER BY CASE WHEN pui.indprop_id = s.indprop_id THEN 1 ELSE 2 END, pui.ImageId DESC
+                LIMIT 1
+            )
+            WHERE s.ImageId IS NULL;
+        """))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
 def normalize_row_dict(keys, r):
     row = {}
     for k, v in zip(keys, r):
@@ -163,6 +180,40 @@ def normalize_row_dict(keys, r):
         k_str = str(k)
         row[k_str] = val
         row[k_str.lower()] = val
+
+    key_mappings = {
+        'ActionId': ['actionid', 'action_id'],
+        'ImageId': ['imageid', 'image_id'],
+        'contact_id': ['contact_id', 'contactid'],
+        'indprop_id': ['indprop_id', 'ind_prop_id', 'individualpropertyid', 'property_id', 'id'],
+        'AdminStatus': ['adminstatus', 'admin_status'],
+        'Reason': ['reason'],
+        'Propertyname': ['propertyname', 'property_name', 'name'],
+        'Propertytype': ['propertytype', 'property_type'],
+        'property_type_name': ['property_type_name', 'propertytypename'],
+        'Ownershiptype': ['ownershiptype', 'ownership_type'],
+        'ownership_type_name': ['ownership_type_name', 'ownershiptypename'],
+        'Propertyaddress': ['propertyaddress', 'property_address', 'address'],
+        'Ownershipproof': ['ownershipproof', 'ownership_proof', 'proof'],
+        'Status': ['status'],
+        'contact_name': ['contact_name', 'contactname', 'name'],
+        'contact_mobile': ['contact_mobile', 'contactmobile', 'mobile_number', 'mobile'],
+        'FrontExteriorAngle': ['frontexteriorangle', 'front_exterior_angle'],
+        'LivingRoomMainHall': ['livingroommainhall', 'living_room_main_hall'],
+        'MasterBedroomAngle': ['masterbedroomangle', 'master_bedroom_angle'],
+        'KitchenDiningSpace': ['kitchendiningspace', 'kitchen_dining_space'],
+        'BalconyWashroomAngle': ['balconywashroomangle', 'balcony_washroom_angle'],
+        'NearestMetroStation': ['nearestmetrostation', 'nearest_metro_station'],
+        'NearestPoliceStation': ['nearestpolicestation', 'nearest_police_station'],
+        'NearestHospital': ['nearesthospital', 'nearest_hospital'],
+        'NearestShoppingMarket': ['nearestshoppingmarket', 'nearest_shopping_market'],
+    }
+    for standard_key, variations in key_mappings.items():
+        if standard_key not in row or row[standard_key] is None:
+            for var in variations:
+                if var in row and row[var] is not None:
+                    row[standard_key] = row[var]
+                    break
     return row
 
 class SuperAdminFinalAction(Resource):
@@ -226,7 +277,20 @@ class SuperAdminFinalAction(Resource):
                 LEFT JOIN public.IndividualPropertyDetails i ON s.indprop_id = i.{prop_pk}
                 LEFT JOIN public.PropertyTypeMaster pt ON i.Propertytype = pt.PropertyId
                 LEFT JOIN public.OwnerTypeMaster ot ON i.Ownershiptype = ot.OwnerTypeId
-                LEFT JOIN public.PropertyUploadImage pui ON (s.ImageId IS NOT NULL AND s.ImageId = pui.ImageId) OR (s.indprop_id IS NOT NULL AND s.indprop_id = pui.indprop_id)
+                LEFT JOIN LATERAL (
+                    SELECT * FROM public.PropertyUploadImage pui_sub
+                    WHERE (s.ImageId IS NOT NULL AND s.ImageId = pui_sub.ImageId)
+                       OR (s.indprop_id IS NOT NULL AND pui_sub.indprop_id IS NOT NULL AND s.indprop_id = pui_sub.indprop_id)
+                       OR (s.contact_id IS NOT NULL AND s.contact_id = pui_sub.contact_id)
+                    ORDER BY 
+                       CASE 
+                            WHEN s.ImageId IS NOT NULL AND s.ImageId = pui_sub.ImageId THEN 1
+                            WHEN s.indprop_id IS NOT NULL AND pui_sub.indprop_id IS NOT NULL AND s.indprop_id = pui_sub.indprop_id THEN 2
+                            ELSE 3 
+                       END,
+                       pui_sub.ImageId DESC
+                    LIMIT 1
+                ) pui ON true
             """
             conditions = []
             params = {}

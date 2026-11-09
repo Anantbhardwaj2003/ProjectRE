@@ -1,12 +1,26 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { Maximize2, X, CheckCircle2, FileText, Activity, Shield, Phone, MapPin, Building, Download, Eye, MoveHorizontal } from 'lucide-react';
+import { Maximize2, X, CheckCircle2, FileText, Shield, MapPin, Building, Download, Eye, MoveHorizontal, Camera, ExternalLink, TrainFront, HeartPulse, ShoppingBag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Property } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { downloadPropertyPdf } from '../utils/generatePdf';
+
+const getFullImageUrl = (path?: string, contactId?: number, indpropId?: number): string => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  if (cleanPath.startsWith('/static/') || cleanPath.startsWith('/uploads/')) {
+    return `http://127.0.0.1:5000${cleanPath}`;
+  }
+  if (contactId && indpropId) {
+    return `http://127.0.0.1:5000/static/uploads/${contactId}/${indpropId}/${cleanPath.replace(/^\//, '')}`;
+  }
+  return `http://127.0.0.1:5000/static/uploads/${cleanPath.replace(/^\//, '')}`;
+};
 
 function MapUpdater({ properties }: { properties: Property[] }) {
   const map = useMap();
@@ -103,6 +117,7 @@ export default function MapComponent({ properties }: MapComponentProps) {
   const [enlargedProperty, setEnlargedProperty] = useState<Property | null>(null);
   const [showDocument, setShowDocument] = useState(false);
   const [show360Gallery, setShow360Gallery] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; label: string } | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -148,8 +163,8 @@ export default function MapComponent({ properties }: MapComponentProps) {
     ? validPropWithCoords.coordinates
     : [28.4089, 77.3178]; 
 
-  // Placeholder amenities
-  const defaultAmenities = ['Swimming Pool', 'Gymnasium', '24/7 Security', 'Power Backup', 'Club House', 'Park'];
+  // Fallback verified amenities
+  const defaultAmenities = ['Verified Title Deed', 'SuperAdmin Whitelisted', '5-Angle Photos Verified', 'Auditor Approved'];
 
   return (
     <div className="w-full h-full bg-gray-50 z-0 relative">
@@ -230,20 +245,28 @@ export default function MapComponent({ properties }: MapComponentProps) {
               <h3 className="text-lg font-bold text-gray-900 mb-0.5">{enlargedProperty.title}</h3>
               <p className="text-gray-500 text-xs sm:text-sm mb-4">{enlargedProperty.location}, {enlargedProperty.city}</p>
               
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <div className="bg-gray-50 p-2 sm:p-2.5 rounded-lg border border-gray-100 text-center">
-                  <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 uppercase font-semibold">Area</p>
-                  <p className="font-medium text-gray-900 text-sm sm:text-base">{enlargedProperty.areaSqFt} <span className="text-[10px] sm:text-xs">sq.ft</span></p>
+              {(enlargedProperty.areaSqFt || enlargedProperty.bhk || enlargedProperty.bathrooms) ? (
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {enlargedProperty.areaSqFt ? (
+                    <div className="bg-gray-50 p-2 sm:p-2.5 rounded-lg border border-gray-100 text-center">
+                      <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 uppercase font-semibold">Area</p>
+                      <p className="font-medium text-gray-900 text-sm sm:text-base">{enlargedProperty.areaSqFt} <span className="text-[10px] sm:text-xs">sq.ft</span></p>
+                    </div>
+                  ) : null}
+                  {enlargedProperty.bhk ? (
+                    <div className="bg-gray-50 p-2 sm:p-2.5 rounded-lg border border-gray-100 text-center">
+                      <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 uppercase font-semibold">Beds</p>
+                      <p className="font-medium text-gray-900 text-sm sm:text-base">{enlargedProperty.bhk} <span className="text-[10px] sm:text-xs">BHK</span></p>
+                    </div>
+                  ) : null}
+                  {enlargedProperty.bathrooms ? (
+                    <div className="bg-gray-50 p-2 sm:p-2.5 rounded-lg border border-gray-100 text-center">
+                      <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 uppercase font-semibold">Baths</p>
+                      <p className="font-medium text-gray-900 text-sm sm:text-base">{enlargedProperty.bathrooms}</p>
+                    </div>
+                  ) : null}
                 </div>
-                <div className="bg-gray-50 p-2 sm:p-2.5 rounded-lg border border-gray-100 text-center">
-                  <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 uppercase font-semibold">Beds</p>
-                  <p className="font-medium text-gray-900 text-sm sm:text-base">{enlargedProperty.bhk} <span className="text-[10px] sm:text-xs">BHK</span></p>
-                </div>
-                <div className="bg-gray-50 p-2 sm:p-2.5 rounded-lg border border-gray-100 text-center">
-                  <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 uppercase font-semibold">Baths</p>
-                  <p className="font-medium text-gray-900 text-sm sm:text-base">{enlargedProperty.bathrooms}</p>
-                </div>
-              </div>
+              ) : null}
 
               <div>
                 <h4 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
@@ -277,10 +300,13 @@ export default function MapComponent({ properties }: MapComponentProps) {
                       <span className="text-blue-700">Documents</span>
                       <span 
                         onClick={() => setShowDocument(true)}
-                        className="font-medium text-blue-600 hover:underline cursor-pointer flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-blue-200 truncate max-w-[200px]"
-                        title={enlargedProperty.Ownershipproof || 'Verified Title Deed'}
+                        className="font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-md border border-blue-200 text-xs shadow-sm transition-all hover:border-blue-300"
+                        title={enlargedProperty.Ownershipproof || enlargedProperty.ownershipproof || 'Verified Title Deed'}
                       >
-                        <FileText className="h-3 w-3 shrink-0" /> {enlargedProperty.Ownershipproof || 'Verified Title Deed'}
+                        <FileText className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                        <span className="truncate max-w-[170px]">
+                          {enlargedProperty.Ownershipproof || enlargedProperty.ownershipproof || enlargedProperty.ownership_type_name || 'Verified Title Deed'}
+                        </span>
                       </span>
                     </p>
                   </div>
@@ -335,14 +361,15 @@ export default function MapComponent({ properties }: MapComponentProps) {
               </h2>
               <div className="flex items-center gap-3">
                 <button 
-                  onClick={() => alert('Downloading Verified Property Report PDF...')}
-                  className="hidden sm:flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                  onClick={() => downloadPropertyPdf(enlargedProperty)}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+                  title="Download Verified Property Report PDF"
                 >
                   <Download className="h-4 w-4" /> Download PDF
                 </button>
                 <button 
                   onClick={() => setShowDocument(false)}
-                  className="p-2 bg-gray-100 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-200 transition-colors"
+                  className="p-2 bg-gray-100 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-200 transition-colors cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -363,159 +390,314 @@ export default function MapComponent({ properties }: MapComponentProps) {
                     <MapPin className="h-4 w-4" /> {enlargedProperty.location}, {enlargedProperty.city}
                   </p>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div className="bg-gray-50 p-3 sm:p-4 rounded-xl border border-gray-100">
                       <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Total Price</p>
-                      <p className="text-xl font-bold text-blue-600">{enlargedProperty.price}</p>
+                      <p className="text-lg sm:text-xl font-bold text-blue-600">{enlargedProperty.price}</p>
                     </div>
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Configuration</p>
-                      <p className="text-xl font-bold text-gray-900">{enlargedProperty.bhk} BHK</p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Carpet Area</p>
-                      <p className="text-xl font-bold text-gray-900">{enlargedProperty.areaSqFt} sq.ft</p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <div className="bg-gray-50 p-3 sm:p-4 rounded-xl border border-gray-100">
                       <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Property Type</p>
-                      <p className="text-xl font-bold text-gray-900">{enlargedProperty.type}</p>
+                      <p className="text-base sm:text-lg font-bold text-gray-900">{enlargedProperty.property_type_name || enlargedProperty.type || 'Residential'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 sm:p-4 rounded-xl border border-gray-100">
+                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Ownership</p>
+                      <p className="text-base sm:text-lg font-bold text-gray-900">{enlargedProperty.ownership_type_name || 'Freehold'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 sm:p-4 rounded-xl border border-gray-100">
+                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">SuperAdmin Status</p>
+                      <p className="text-base sm:text-lg font-bold text-emerald-600">{enlargedProperty.AdminStatus || 'Whitelisted'}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+                {/* 1. Property Specifications (Original Data) */}
                 <div>
                   <h4 className="font-bold text-gray-900 text-lg border-b border-gray-200 pb-3 mb-4 flex items-center gap-2">
-                    <Building className="h-5 w-5 text-gray-500" /> Property Specifications
+                    <Building className="h-5 w-5 text-blue-600" /> Property Specifications
                   </h4>
                   <ul className="space-y-3">
-                    <li className="flex justify-between text-sm">
-                      <span className="text-gray-500">Furnishing</span>
-                      <span className="font-medium text-gray-900">Semi-Furnished</span>
+                    <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                      <span className="text-gray-500">Listing ID</span>
+                      <span className="font-semibold text-gray-900">#{enlargedProperty.indprop_id || enlargedProperty.id}</span>
                     </li>
-                    <li className="flex justify-between text-sm">
-                      <span className="text-gray-500">Facing</span>
-                      <span className="font-medium text-gray-900">North-East</span>
+                    <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                      <span className="text-gray-500">Property Name</span>
+                      <span className="font-semibold text-gray-900 text-right truncate max-w-[200px]" title={enlargedProperty.Propertyname || enlargedProperty.title}>
+                        {enlargedProperty.Propertyname || enlargedProperty.title}
+                      </span>
                     </li>
-                    <li className="flex justify-between text-sm">
-                      <span className="text-gray-500">Floor</span>
-                      <span className="font-medium text-gray-900">8th of 15 Floors</span>
+                    <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                      <span className="text-gray-500">Property Category</span>
+                      <span className="font-semibold text-gray-900">{enlargedProperty.property_type_name || enlargedProperty.type || 'Residential'}</span>
                     </li>
-                    <li className="flex justify-between text-sm">
-                      <span className="text-gray-500">Age of Property</span>
-                      <span className="font-medium text-gray-900">2-5 Years</span>
+                    <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                      <span className="text-gray-500">Ownership Tenure</span>
+                      <span className="font-semibold text-gray-900">{enlargedProperty.ownership_type_name || 'Freehold / Verified Deed'}</span>
                     </li>
-                    <li className="flex justify-between text-sm">
-                      <span className="text-gray-500">Parking</span>
-                      <span className="font-medium text-gray-900">2 Covered Slots</span>
+                    <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                      <span className="text-gray-500">Deed Proof Document</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-blue-600 truncate max-w-[190px]" title={enlargedProperty.Ownershipproof || enlargedProperty.ownershipproof || 'Verified Title Deed'}>
+                          {enlargedProperty.Ownershipproof || enlargedProperty.ownershipproof || 'Verified Title Deed'}
+                        </span>
+                        {(enlargedProperty.Ownershipproof || enlargedProperty.ownershipproof) && (
+                          <a
+                            href={getFullImageUrl(enlargedProperty.Ownershipproof || enlargedProperty.ownershipproof, enlargedProperty.contact_id, enlargedProperty.indprop_id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-gray-400 hover:text-blue-600 transition-colors p-0.5"
+                            title="Open deed document"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                    <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                      <span className="text-gray-500">Physical Address</span>
+                      <span className="font-semibold text-gray-900 text-right truncate max-w-[200px]" title={enlargedProperty.Propertyaddress || enlargedProperty.location}>
+                        {enlargedProperty.Propertyaddress || enlargedProperty.location}
+                      </span>
+                    </li>
+                    <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                      <span className="text-gray-500">SuperAdmin Decision</span>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                        {enlargedProperty.AdminStatus || 'Whitelisted'}
+                      </span>
+                    </li>
+                    <li className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500">Audit Trail Reason</span>
+                      <span className="font-medium text-gray-700 text-right text-xs max-w-[200px] truncate" title={enlargedProperty.Reason}>
+                        {enlargedProperty.Reason || 'Fully Verified & Whitelisted by Super Administrator'}
+                      </span>
                     </li>
                   </ul>
-
-                  <h4 className="font-bold text-gray-900 text-lg border-b border-gray-200 pb-3 mt-8 mb-4">
-                    Detailed Amenities & Features
-                  </h4>
-                  <div className="space-y-4">
-                    <div>
-                      <h5 className="text-sm font-semibold text-gray-900 mb-2">Leisure & Lifestyle</h5>
-                      <ul className="grid grid-cols-2 gap-y-2 gap-x-4">
-                        <li className="flex items-start gap-2 text-sm text-gray-700">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <span className="block font-medium">Clubhouse</span>
-                            <span className="text-xs text-gray-500">Fully equipped, 5000 sqft</span>
-                          </div>
-                        </li>
-                        <li className="flex items-start gap-2 text-sm text-gray-700">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <span className="block font-medium">Swimming Pool</span>
-                            <span className="text-xs text-gray-500">Temperature controlled</span>
-                          </div>
-                        </li>
-                        <li className="flex items-start gap-2 text-sm text-gray-700">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <span className="block font-medium">Gymnasium</span>
-                            <span className="text-xs text-gray-500">24/7 Access, Trainer avail.</span>
-                          </div>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div>
-                      <h5 className="text-sm font-semibold text-gray-900 mb-2">Security & Convenience</h5>
-                      <ul className="grid grid-cols-2 gap-y-2 gap-x-4">
-                        <li className="flex items-start gap-2 text-sm text-gray-700">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <span className="block font-medium">24x7 Security</span>
-                            <span className="text-xs text-gray-500">CCTV & Manned patrols</span>
-                          </div>
-                        </li>
-                        <li className="flex items-start gap-2 text-sm text-gray-700">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <span className="block font-medium">Power Backup</span>
-                            <span className="text-xs text-gray-500">100% DG Backup</span>
-                          </div>
-                        </li>
-                        <li className="flex items-start gap-2 text-sm text-gray-700">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <span className="block font-medium">Visitor Parking</span>
-                            <span className="text-xs text-gray-500">Dedicated basement slots</span>
-                          </div>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
                 </div>
 
+                {/* 2. Surrounding Landmarks & Infrastructure (Original Data) */}
                 <div>
                   <h4 className="font-bold text-gray-900 text-lg border-b border-gray-200 pb-3 mb-4 flex items-center gap-2">
-                    <Activity className="h-5 w-5 text-red-500" /> Emergency & Neighborhood
+                    <MapPin className="h-5 w-5 text-emerald-600" /> Surrounding Landmarks & Infrastructure
                   </h4>
-                  <ul className="space-y-6">
-                    <li className="flex gap-4 p-4 rounded-xl border border-gray-100 bg-red-50/50">
-                      <Activity className="h-6 w-6 text-red-500 shrink-0 mt-1" />
-                      <div>
-                        <p className="font-bold text-gray-900 text-base">{enlargedProperty.NearestHospital || 'City Central Hospital'}</p>
-                        <p className="text-sm text-gray-600 mb-2">Distance: 1.2 km (5 mins)</p>
-                        <div className="flex items-center gap-2 text-sm bg-white border border-red-100 rounded-lg px-3 py-1.5 w-max">
-                          <Phone className="h-3.5 w-3.5 text-red-600" />
-                          <span className="font-medium text-red-700">+91 99887 76655</span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">Dr. Rajesh Kumar (Chief Medical Officer)</p>
-                      </div>
-                    </li>
-                    <li className="flex gap-4 p-4 rounded-xl border border-gray-100 bg-blue-50/50">
-                      <Shield className="h-6 w-6 text-blue-500 shrink-0 mt-1" />
-                      <div>
-                        <p className="font-bold text-gray-900 text-base">{enlargedProperty.NearestPoliceStation || 'Local Police Station'}</p>
-                        <p className="text-sm text-gray-600 mb-2">Distance: 2.5 km (8 mins)</p>
-                        <div className="flex items-center gap-2 text-sm bg-white border border-blue-100 rounded-lg px-3 py-1.5 w-max">
-                          <Phone className="h-3.5 w-3.5 text-blue-600" />
-                          <span className="font-medium text-blue-700">100 / 022-23456789</span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">Inspector Desai (In-Charge)</p>
-                      </div>
-                    </li>
-                    <li className="flex gap-4 p-4 rounded-xl border border-gray-100 bg-emerald-50/50">
-                      <Building className="h-6 w-6 text-emerald-500 shrink-0 mt-1" />
-                      <div>
-                        <p className="font-bold text-gray-900 text-base">Fire Department</p>
-                        <p className="text-sm text-gray-600 mb-2">Distance: 3.0 km (10 mins)</p>
-                        <div className="flex items-center gap-2 text-sm bg-white border border-emerald-100 rounded-lg px-3 py-1.5 w-max">
-                          <Phone className="h-3.5 w-3.5 text-emerald-600" />
-                          <span className="font-medium text-emerald-700">101 / 022-98765432</span>
-                        </div>
-                      </div>
-                    </li>
+                  <ul className="space-y-3.5">
+                    {(() => {
+                      const metroVal = enlargedProperty.NearestMetroStation || enlargedProperty.nearestmetrostation || enlargedProperty.nearest_metro_station;
+                      const hospitalVal = enlargedProperty.NearestHospital || enlargedProperty.nearesthospital || enlargedProperty.nearest_hospital;
+                      const policeVal = enlargedProperty.NearestPoliceStation || enlargedProperty.nearestpolicestation || enlargedProperty.nearest_police_station;
+                      const marketVal = enlargedProperty.NearestShoppingMarket || enlargedProperty.nearestshoppingmarket || enlargedProperty.nearest_shopping_market;
+
+                      return (
+                        <>
+                          <li className="flex gap-3.5 p-3.5 rounded-xl border border-gray-100 bg-blue-50/50">
+                            <TrainFront className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Nearest Metro Station</span>
+                                {metroVal && (
+                                  <span className="text-[10px] font-semibold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">Verified Transit</span>
+                                )}
+                              </div>
+                              <p className="font-semibold text-gray-900 text-sm truncate">{metroVal || 'Metro Station Nearby on Record'}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Verified rapid transit connectivity for this listing</p>
+                            </div>
+                          </li>
+
+                          <li className="flex gap-3.5 p-3.5 rounded-xl border border-gray-100 bg-rose-50/50">
+                            <HeartPulse className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600">Nearest Hospital</span>
+                                {hospitalVal && (
+                                  <span className="text-[10px] font-semibold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded">Medical Care</span>
+                                )}
+                              </div>
+                              <p className="font-semibold text-gray-900 text-sm truncate">{hospitalVal || 'Hospital / Healthcare Facility on Record'}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Verified emergency medical center nearby</p>
+                            </div>
+                          </li>
+
+                          <li className="flex gap-3.5 p-3.5 rounded-xl border border-gray-100 bg-amber-50/50">
+                            <Shield className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Nearest Police Station</span>
+                                {policeVal && (
+                                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">Security Post</span>
+                                )}
+                              </div>
+                              <p className="font-semibold text-gray-900 text-sm truncate">{policeVal || 'Local Police Station on Record'}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Law enforcement & neighborhood security post</p>
+                            </div>
+                          </li>
+
+                          <li className="flex gap-3.5 p-3.5 rounded-xl border border-gray-100 bg-emerald-50/50">
+                            <ShoppingBag className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Nearest Shopping Market</span>
+                                {marketVal && (
+                                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">Retail Center</span>
+                                )}
+                              </div>
+                              <p className="font-semibold text-gray-900 text-sm truncate">{marketVal || 'Shopping Market on Record'}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Retail market & daily convenience center</p>
+                            </div>
+                          </li>
+                        </>
+                      );
+                    })()}
                   </ul>
                 </div>
               </div>
+
+              {/* 3. 5-Angle Verified Photos (Click to Enlarge) */}
+              <div className="mt-8 pt-8 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                      <Camera className="h-5 w-5 text-blue-600" /> 5-Angle Verified Property Photos
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Verified photographic documentation captured during on-site audit inspection
+                    </p>
+                  </div>
+                  <span className="self-start sm:self-auto text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                    5 Inspection Angles
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                  {[
+                    {
+                      label: 'Front / Exterior Angle',
+                      url: enlargedProperty.FrontExteriorAngle || enlargedProperty.frontexteriorangle || enlargedProperty.front_exterior_angle,
+                      desc: 'Property facade & approach'
+                    },
+                    {
+                      label: 'Living Room / Main Hall',
+                      url: enlargedProperty.LivingRoomMainHall || enlargedProperty.livingroommainhall || enlargedProperty.living_room_main_hall,
+                      desc: 'Living area & entrance hall'
+                    },
+                    {
+                      label: 'Master Bedroom Angle',
+                      url: enlargedProperty.MasterBedroomAngle || enlargedProperty.masterbedroomangle || enlargedProperty.master_bedroom_angle,
+                      desc: 'Primary bedroom & layout'
+                    },
+                    {
+                      label: 'Kitchen & Dining Space',
+                      url: enlargedProperty.KitchenDiningSpace || enlargedProperty.kitchendiningspace || enlargedProperty.kitchen_dining_space,
+                      desc: 'Kitchen & meal prep area'
+                    },
+                    {
+                      label: 'Balcony / Washroom Angle',
+                      url: enlargedProperty.BalconyWashroomAngle || enlargedProperty.balconywashroomangle || enlargedProperty.balcony_washroom_angle,
+                      desc: 'Balcony & sanitary fittings'
+                    }
+                  ].map((angle, idx) => {
+                    const fullUrl = getFullImageUrl(angle.url, enlargedProperty.contact_id, enlargedProperty.indprop_id);
+                    return (
+                      <div key={idx} className="rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                        <div 
+                          className="aspect-video rounded-lg overflow-hidden bg-gray-100 relative group border border-gray-100 mb-2.5 cursor-pointer"
+                          onClick={() => fullUrl && setLightboxImage({ url: fullUrl, label: angle.label })}
+                        >
+                          {fullUrl ? (
+                            <>
+                              <img 
+                                src={fullUrl} 
+                                alt={angle.label} 
+                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                onError={(e) => {
+                                  const fallbackUrl = `http://127.0.0.1:5000${angle.url?.startsWith('/') ? '' : '/'}${angle.url}`;
+                                  if (e.currentTarget.src !== fallbackUrl) {
+                                    e.currentTarget.src = fallbackUrl;
+                                  }
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="px-2.5 py-1 rounded-lg bg-black/70 text-white text-[11px] font-semibold flex items-center gap-1.5 backdrop-blur-sm">
+                                  <Eye className="h-3.5 w-3.5 text-blue-400" />
+                                  <span>Click to Enlarge</span>
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="h-full w-full flex flex-col items-center justify-center text-gray-400 text-xs italic gap-1 p-2">
+                              <Camera className="h-6 w-6 text-gray-300" />
+                              <span className="text-[11px]">No photo uploaded</span>
+                            </div>
+                          )}
+
+                          {fullUrl && (
+                            <a
+                              href={fullUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute bottom-1.5 right-1.5 p-1 rounded-md bg-black/70 hover:bg-black text-white text-[10px] flex items-center gap-1 transition-colors"
+                              title="Open full resolution in new tab"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
+
+                        <div className="px-1">
+                          <span className="text-xs font-bold text-gray-900 block truncate" title={angle.label}>
+                            {angle.label}
+                          </span>
+                          <span className="text-[11px] text-gray-500 block truncate mt-0.5">
+                            {angle.desc}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Lightbox Modal for 5-Angle Verified Photos */}
+      {lightboxImage && createPortal(
+        <div 
+          className="fixed inset-0 z-[2500] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="absolute top-5 right-5 flex items-center gap-3 z-10">
+            <a 
+              href={lightboxImage.url} 
+              target="_blank" 
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="px-3.5 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-semibold backdrop-blur-sm flex items-center gap-1.5 transition-colors"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Full Tab
+            </a>
+            <button 
+              onClick={() => setLightboxImage(null)}
+              className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors cursor-pointer"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          
+          <div className="text-center text-white mb-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base sm:text-lg font-bold">{lightboxImage.label}</h3>
+            <p className="text-xs text-white/70">{enlargedProperty?.title || 'Verified Property Photo'}</p>
+          </div>
+
+          <div className="max-w-4xl max-h-[75vh] rounded-2xl overflow-hidden shadow-2xl border border-white/20" onClick={(e) => e.stopPropagation()}>
+            <img 
+              src={lightboxImage.url} 
+              alt={lightboxImage.label} 
+              className="w-full h-full object-contain max-h-[75vh]"
+            />
           </div>
         </div>,
         document.body

@@ -38,4 +38,25 @@ export interface Property {
   NearestPoliceStation?: string;
   NearestHospital?: string;
   NearestShoppingMarket?: string;
+  // Lowercase / alternate DB variants
+  frontexteriorangle?: string;
+  front_exterior_angle?: string;
+  livingroommainhall?: string;
+  living_room_main_hall?: string;
+  masterbedroomangle?: string;
+  master_bedroom_angle?: string;
+  kitchendiningspace?: string;
+  kitchen_dining_space?: string;
+  balconywashroomangle?: string;
+  balcony_washroom_angle?: string;
+  nearestmetrostation?: string;
+  nearest_metro_station?: string;
+  nearestpolicestation?: string;
+  nearest_police_station?: string;
+  nearesthospital?: string;
+  nearest_hospital?: string;
+  nearestshoppingmarket?: string;
+  nearest_shopping_market?: string;
+  ownershipproof?: string;
+  [key: string]: any;
 }

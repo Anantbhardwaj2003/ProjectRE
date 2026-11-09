@@ -291,11 +291,8 @@ ProjectRE/
 │   │   │   └── AuthContext.tsx             # Global authentication & session provider
 │   │   ├── services/
 │   │   │   └── geocoding.ts                # Google Maps Geocoding service & local cache
-<<<<<<< HEAD
 │   │   ├── utils/
 │   │   │   └── generatePdf.ts              # PDF 1.4 report generator with 'estatesyn' watermark
-=======
->>>>>>> 00308974ebd9665d80faa67b1e413fe272f1f7e7
 │   │   ├── pages/
 │   │   │   ├── Home.tsx                    # Homepage with search, near me & live OSM map
 │   │   │   ├── Admin.tsx                   # Role-based admin login (routes to role console)

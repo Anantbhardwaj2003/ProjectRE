@@ -56,21 +56,6 @@ type TabType = 'pending' | 'accepted' | 'rejected' | 'all';
 export default function PropertyManager() {
   const { user, isLoadingAuth } = useAuth();
 
-  if (isLoadingAuth) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-        <div className="flex items-center gap-3">
-          <div className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-sm font-medium text-gray-300">Verifying session...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/admin" replace />;
-  }
-
   // Active view tab: 'pending' | 'accepted' | 'rejected' | 'all'
   const [activeTab, setActiveTab] = useState<TabType>('pending');
 
@@ -345,8 +330,10 @@ export default function PropertyManager() {
   };
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (user && !isLoadingAuth) {
+      fetchDashboardData();
+    }
+  }, [user, isLoadingAuth]);
 
   // Handle action dropdown change (posts to /api/v1/propertymanagercompleted)
   const handleActionChange = async (item: PropertyListing, index: number, selectedAction: string) => {
@@ -494,6 +481,21 @@ export default function PropertyManager() {
     }
     return [1, '...', current - 1, current, current + 1, '...', total];
   };
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-sm font-medium text-gray-300">Verifying session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/admin" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">

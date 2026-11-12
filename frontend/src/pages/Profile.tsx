@@ -20,19 +20,8 @@ export default function Profile() {
   const [profileMobile, setProfileMobile] = useState<string>(contactMobile || '');
   const [loading, setLoading] = useState<boolean>(true);
 
-  if (isLoadingAuth) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="h-6 w-6 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (!user && !contactMobile && !profileName) {
-    return <Navigate to="/login" replace />;
-  }
-
   useEffect(() => {
+    if (!user && !contactMobile && !contactId) return;
     let isMounted = true;
 
     const fetchContactDetails = async () => {
@@ -100,6 +89,18 @@ export default function Profile() {
 
   const displayName = profileName || user || 'Verified User';
   const displayMobile = profileMobile || contactMobile || 'Not provided';
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="h-6 w-6 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user && !contactMobile && !profileName) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50/70 font-sans text-gray-900 selection:bg-gray-200">

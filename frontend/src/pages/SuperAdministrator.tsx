@@ -60,21 +60,6 @@ type TabType = 'all' | 'pending' | 'manager_accepted' | 'auditor_accepted' | 're
 export default function SuperAdministrator() {
   const { user, isLoadingAuth } = useAuth();
 
-  if (isLoadingAuth) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-        <div className="flex items-center gap-3">
-          <div className="h-5 w-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-sm font-medium text-gray-300">Verifying superadmin session...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/admin" replace />;
-  }
-
   // Active view tab: 'all' | 'pending' | 'manager_accepted' | 'auditor_accepted' | 'rejected'
   const [activeTab, setActiveTab] = useState<TabType>('all');
 
@@ -198,7 +183,22 @@ export default function SuperAdministrator() {
   const isProofFile = (proof?: string | null) => {
     if (!proof) return false;
     const p = proof.trim().toLowerCase();
+    if (isLoadingAuth) {
     return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-sm font-medium text-gray-300">Verifying superadmin session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return (
       p.startsWith('http://') ||
       p.startsWith('https://') ||
       p.startsWith('/static/') ||
@@ -478,8 +478,10 @@ export default function SuperAdministrator() {
   };
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (user && !isLoadingAuth) {
+      fetchDashboardData();
+    }
+  }, [user, isLoadingAuth]);
 
   // Superadmin executive action change handler with custom reason
   const handleActionChange = async (
@@ -711,6 +713,21 @@ export default function SuperAdministrator() {
     }
     return [1, '...', current - 1, current, current + 1, '...', total];
   };
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-sm font-medium text-gray-300">Verifying superadmin session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/admin" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
@@ -1187,7 +1204,22 @@ export default function SuperAdministrator() {
                     const isRej = isRejectedStatus(rawStatus, item.AdminStatus);
                     const isUpdating = updatingRowId === rowKey;
 
-                    return (
+                    if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-sm font-medium text-gray-300">Verifying superadmin session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return (
                       <tr key={rowKey} className="hover:bg-gray-50/70 transition-colors">
                         
                         {/* Property Column */}
@@ -1490,7 +1522,22 @@ export default function SuperAdministrator() {
                   <div className="flex items-center gap-1">
                     {getPageNumbers(validCurrentPage, totalPages).map((p, idx) => {
                       if (p === '...') {
-                        return (
+                        if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-sm font-medium text-gray-300">Verifying superadmin session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return (
                           <span key={`ellipsis-${idx}`} className="px-2 py-1 text-gray-400 font-bold select-none">
                             ...
                           </span>
@@ -1498,7 +1545,22 @@ export default function SuperAdministrator() {
                       }
                       const pageNum = Number(p);
                       const isActive = pageNum === validCurrentPage;
-                      return (
+                      if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-sm font-medium text-gray-300">Verifying superadmin session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return (
                         <button
                           key={pageNum}
                           type="button"

@@ -291,11 +291,8 @@ ProjectRE/
 │   │   │   └── AuthContext.tsx             # Global authentication & session provider
 │   │   ├── services/
 │   │   │   └── geocoding.ts                # Google Maps Geocoding service & local cache
-<<<<<<< HEAD
 │   │   ├── utils/
 │   │   │   └── generatePdf.ts              # PDF 1.4 report generator with 'estatesyn' watermark
-=======
->>>>>>> 00308974ebd9665d80faa67b1e413fe272f1f7e7
 │   │   ├── pages/
 │   │   │   ├── Home.tsx                    # Homepage with search, near me & live OSM map
 │   │   │   ├── Admin.tsx                   # Role-based admin login (routes to role console)
@@ -415,11 +412,8 @@ erDiagram
 | `POST` | `/api/v1/propertyimageupload` | Upload 5 angle photos (500 KB limit) and landmarks; updates status to `UploadImagesByUser`. |
 | `GET` | `/api/v1/propertymanagercompleted` | Retrieve completed listings (`Accepted_By_PropertyManager` and `Rejected_By_PropertyManager`). |
 | `POST` | `/api/v1/propertymanagercompleted` | Transition status from `UploadImagesByUser` to `Accepted_By_PropertyManager` or `Rejected_By_PropertyManager`. |
-<<<<<<< HEAD
-| `GET` | `/api/v1/superadminfinalaction` | Retrieve Superadmin executive decisions, reasons, and status overrides across listings. Supports `?AdminStatus=Whitelisted`. Includes `LEFT JOIN LATERAL` against `PropertyUploadImage` returning all 5 angle photos and surrounding landmark infrastructure with key normalization. |
-=======
-| `GET` | `/api/v1/superadminfinalaction` | Retrieve Superadmin executive decisions, reasons, and status overrides across listings. Supports `?AdminStatus=Whitelisted`. |
->>>>>>> 00308974ebd9665d80faa67b1e413fe272f1f7e7
+| `GET` | `/api/v1/superadminfinalaction` | Retrieve Superadmin executive decisions, reasons, and status overrides across listings`. |
+| `GET` | `/api/v1/superadminfinalaction` | Retrieve Superadmin executive decisions, reasons, and status overrides across listings. Supports `AdminStatus=Whitelisted`. |
 | `POST` | `/api/v1/superadminfinalaction` | Record a Superadmin executive decision (`Whitelisted`, `AdminProcess`, `Rejected`) with custom reason in `SuperAdminFinalAction`. |
 | `GET` | `/api/v1/geocode` | Geocode an address string using Google Maps Geocoding API (`?address=...`), returning exact `lat` and `lng`. |
 

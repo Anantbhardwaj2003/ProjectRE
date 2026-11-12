@@ -64,7 +64,6 @@ EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tie
 - **Property Name Pin Badges**:
   - Circular image pin markers featuring front exterior photos and teardrop anchors.
   - Floating white badge above each pin displays the actual **Property Name** (e.g. *"House No. 18"*, *"Flat No. 103"*, *"Sunrise Villa"*) with native hover tooltip and text truncation.
-<<<<<<< HEAD
 - **Interactive Popup Cards & Verified Property Report**:
   - Clicking any map marker reveals a property card preview showing photo, verified deed reference, contact info, and top amenities.
   - **Clean Document Proof Badge**: Under "Documents", displays the verified ownership proof/deed without redundant PDF buttons.
@@ -73,9 +72,7 @@ EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tie
     - **Surrounding Infrastructure & Landmarks**: Real-time display of recorded Nearest Metro Station, Nearest Hospital, Nearest Police Station, and Nearest Shopping Market.
     - **5-Angle Verified Photos Gallery**: Displays high-resolution photos for Front/Exterior, Living Room, Master Bedroom, Kitchen & Dining, and Balcony/Washroom with click-to-enlarge lightbox modal and new-tab links.
     - **Official PDF Export**: Dedicated "Download PDF" report generator in the modal header with a 45° slanting company watermark `estatesyn`.
-=======
 - **Interactive Popup Cards**: Clicking any marker reveals a preview card with photo, property name, full address, verification status, and property type tag, expandable to a full detail modal.
->>>>>>> 00308974ebd9665d80faa67b1e413fe272f1f7e7
 - **Persistent Local Caching**: Resolved coordinates are cached in `localStorage` under `estatesync_google_geocache_v1`, ensuring zero redundant API calls and instantaneous page loads.
 
 ---
@@ -120,7 +117,7 @@ EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tie
   - **Dedicated `Reason` Column**: Separate table column displaying the full, un-truncated reason inside a styled status-colored card (`whitespace-normal break-words leading-relaxed`).
 - **Executive Action Selector with Reason Prompt**:
   - When selecting an action from the dropdown, an interactive reason field opens directly in-row:
-    - **`✓ Full Verify & Make Live`** &rarr; Stored in `public.SuperAdminFinalAction` as `AdminStatus = 'Whitelisted'` and sets pipeline status to `Accepted_By_PropertyManager`.
+    - **`✓ Full Verify & Make Live`** &rarr; Stored in `public.SuperAdminFinalAction` as `AdminStatus = 'Whitelisted'` and sets pipeline status to `Accepted_By_PropertyManager`. This immediately displays the property on the Dashboard Page (`/propertymanager` - Active Properties tab, and `/superadministrator` - Manager Verified tab) and publishes it live to the OpenStreetMap interactive feed on the homepage.
     - **`🛡️ Mark Auditor Approved`** &rarr; Stored as `AdminStatus = 'AdminProcess'` and sets pipeline status to `Accepted_By_ListingAuditor`.
     - **`✕ Decline / Flag Listing`** &rarr; Stored as `AdminStatus = 'Rejected'` and sets pipeline status to `Rejected_By_PropertyManager`.
 - **Canonical Deduplication Engine (`getPropertyDedupeKey`)**:
@@ -200,10 +197,21 @@ stateDiagram-v2
     Tier2 --> Superadmin: Executive Decision / Override
     Tier3 --> Superadmin: Executive Decision / Override
 
-    state "Platform Live Portfolio & OpenStreetMap" as Live {
-        Accepted_By_PropertyManager: 100% Operational & Live for Buyers / Tenants
-        Whitelisted --> Accepted_By_PropertyManager: Live Active & Plotted on Map
+    state "Dashboard Page (Active Properties / Live Portfolio)" as DashboardState {
+        Dashboard_Active: Shown in Dashboard (/propertymanager & /superadministrator)
+        Dashboard_Active: Pipeline Status = 'Accepted_By_PropertyManager'
+        Dashboard_Active: Filtered into Active Properties & Manager Verified Tabs
     }
+
+    state "Public Discovery & OpenStreetMap Engine" as PublicMap {
+        OpenStreetMap_Live: Plotted on OpenStreetMap via Google Maps Geocoding
+        OpenStreetMap_Live: Live Whitelisted Feed (?AdminStatus=Whitelisted)
+        OpenStreetMap_Live: Verified Property Report & PDF Export
+    }
+
+    Whitelisted --> Dashboard_Active: SuperAdmin Whitelist triggers Dashboard Listing
+    Accepted_By_PropertyManager --> Dashboard_Active: Manager Approval populates Dashboard
+    Dashboard_Active --> OpenStreetMap_Live: Published Live on Home Map for Buyers & Tenants
 
     state "Declined Archives" as Archive {
         Rejected_By_ListingAuditor: Deed Verification Failed

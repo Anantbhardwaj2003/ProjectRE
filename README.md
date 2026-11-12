@@ -64,7 +64,6 @@ EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tie
 - **Property Name Pin Badges**:
   - Circular image pin markers featuring front exterior photos and teardrop anchors.
   - Floating white badge above each pin displays the actual **Property Name** (e.g. *"House No. 18"*, *"Flat No. 103"*, *"Sunrise Villa"*) with native hover tooltip and text truncation.
-<<<<<<< HEAD
 - **Interactive Popup Cards & Verified Property Report**:
   - Clicking any map marker reveals a property card preview showing photo, verified deed reference, contact info, and top amenities.
   - **Clean Document Proof Badge**: Under "Documents", displays the verified ownership proof/deed without redundant PDF buttons.
@@ -73,9 +72,7 @@ EstateSync is an enterprise-grade, full-stack real estate marketplace, multi-tie
     - **Surrounding Infrastructure & Landmarks**: Real-time display of recorded Nearest Metro Station, Nearest Hospital, Nearest Police Station, and Nearest Shopping Market.
     - **5-Angle Verified Photos Gallery**: Displays high-resolution photos for Front/Exterior, Living Room, Master Bedroom, Kitchen & Dining, and Balcony/Washroom with click-to-enlarge lightbox modal and new-tab links.
     - **Official PDF Export**: Dedicated "Download PDF" report generator in the modal header with a 45° slanting company watermark `estatesyn`.
-=======
 - **Interactive Popup Cards**: Clicking any marker reveals a preview card with photo, property name, full address, verification status, and property type tag, expandable to a full detail modal.
->>>>>>> 00308974ebd9665d80faa67b1e413fe272f1f7e7
 - **Persistent Local Caching**: Resolved coordinates are cached in `localStorage` under `estatesync_google_geocache_v1`, ensuring zero redundant API calls and instantaneous page loads.
 
 ---

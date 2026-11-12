@@ -732,7 +732,7 @@ export default function ListingDashboard() {
                       <th scope="col" className="px-4 py-3">Property Type</th>
                       <th scope="col" className="px-4 py-3">Owner / Contact</th>
                       <th scope="col" className="px-4 py-3">Ownership</th>
-                      <th scope="col" className="px-4 py-3">Address</th>
+                      <th scope="col" className="px-4 py-3 min-w-[200px]">Address</th>
                       <th scope="col" className="px-4 py-3">Documents</th>
                       <th scope="col" className="px-4 py-3 text-center">Status</th>
                       <th scope="col" className="px-4 py-3 text-center">Action</th>
@@ -797,11 +797,13 @@ export default function ListingDashboard() {
                           </span>
                         </td>
 
-                        {/* Address Column */}
-                        <td className="px-4 py-3 text-gray-600 max-w-xs truncate" title={address}>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3 text-gray-400 shrink-0" />
-                            <span className="truncate">{address}</span>
+                        {/* Address Column - Full Address Display without Truncation */}
+                        <td className="px-4 py-3 min-w-[200px] max-w-sm text-gray-700">
+                          <div className="flex items-start gap-1.5">
+                            <MapPin className="h-3.5 w-3.5 text-gray-400 shrink-0 mt-0.5" />
+                            <span className="leading-relaxed whitespace-normal break-words text-xs">
+                              {address}
+                            </span>
                           </div>
                         </td>
 
